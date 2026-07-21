@@ -8,17 +8,6 @@ Name
 
 Raygen — Ray Generator
 
-raygen 1
-
-module hello.world
-
-use system.io
-
-origin main
-{
-    emit "Hello, world!"
-}
-
 A ray begins at one fixed origin and extends infinitely in one direction. Raygen applies that principle to software execution:
 
 «Every instruction begins from a known state, follows an explicit direction, and produces a traceable result.»
