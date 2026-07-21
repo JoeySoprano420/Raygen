@@ -2613,6 +2613,16 @@ parallelismdeductionnative loweringRaygen is now a serious systems language — 
 
 
 
+raygen 1
+
+module hello.world
+
+use system.io
+
+origin main
+{
+    emit "Hello, world!"
+}
 
 
 
@@ -9093,13 +9103,3 @@ Generate the execution.»
 
 
 
-raygen 1
-
-module hello.world
-
-use system.io
-
-origin main
-{
-    emit "Hello, world!"
-}
