@@ -1,0 +1,1455 @@
+raygen 1
+
+module commerce.order_engine
+
+use system.io
+use system.math
+use system.text
+use system.time
+use system.tables
+use system.collections
+use system.parallel
+use system.memory
+
+
+#[
+    Raygen Commerce Order Engine
+
+    Demonstrates:
+
+    - Strong nominal types
+    - Records, choices, listings, arrays, nests, tables, and trees
+    - retain, store, dismiss, and free
+    - allow and deny error handling
+    - Direct mapping
+    - Derivative ordering
+    - Deductive reasoning
+    - Case-based concurrency
+    - Ordered-layer parallelism
+    - Inherent sorting
+    - Mathematical loops
+    - Regions
+    - Traits and implementations
+]#
+
+
+# ------------------------------------------------------------
+# Domain types
+# ------------------------------------------------------------
+
+type ProductId = u256
+type CustomerId = u256
+type OrderId = u256
+
+type Quantity = u32
+where value > 0
+
+type StockCount = u32
+
+type Money = f64
+where value >= 0.0
+
+type Percentage = f64
+where value >= 0.0 and value <= 100.0
+
+
+choice ProductCategory
+{
+    electronics
+    household
+    food
+    books
+    clothing
+    tools
+    unknown
+}
+
+
+choice OrderStatus
+{
+    pending
+    validating
+    approved
+    denied
+    processing
+    completed
+}
+
+
+choice PaymentMethod
+{
+    card
+    bank
+    wallet
+    cash
+}
+
+
+choice OrderError
+{
+    product_missing(ProductId)
+    insufficient_stock(ProductId, Quantity, StockCount)
+    invalid_quantity(ProductId)
+    invalid_customer(CustomerId)
+    payment_denied(text)
+    empty_order
+    calculation_failure(text)
+    storage_failure(text)
+}
+
+
+# ------------------------------------------------------------
+# Core records
+# ------------------------------------------------------------
+
+record Product
+{
+    id: ProductId
+    name: text
+    category: ProductCategory
+    price: Money
+    stock: StockCount
+    active: bool
+}
+
+
+record Customer
+{
+    id: CustomerId
+    name: text
+    email: text
+    discount: Percentage
+    active: bool
+}
+
+
+record OrderItem
+{
+    product_id: ProductId
+    quantity: Quantity
+}
+
+
+record PricedItem
+{
+    product_id: ProductId
+    product_name: text
+    quantity: Quantity
+    unit_price: Money
+    line_total: Money
+}
+
+
+record Order
+{
+    id: OrderId
+    customer_id: CustomerId
+    items: listing<OrderItem>
+    payment: PaymentMethod
+    status: OrderStatus
+}
+
+
+record OrderTotals
+{
+    subtotal: Money
+    discount: Money
+    tax: Money
+    shipping: Money
+    grand_total: Money
+}
+
+
+record ProcessedOrder
+{
+    id: OrderId
+    customer_name: text
+    items: listing<PricedItem>
+    totals: OrderTotals
+    status: OrderStatus
+    processed_at: u64
+}
+
+
+record InventoryChange
+{
+    product_id: ProductId
+    previous_stock: StockCount
+    quantity_removed: Quantity
+    remaining_stock: StockCount
+}
+
+
+record OrderReport
+{
+    processed_count: u64
+    denied_count: u64
+    revenue: Money
+    average_order_value: Money
+    largest_order: Money
+}
+
+
+# ------------------------------------------------------------
+# Configuration nest
+# ------------------------------------------------------------
+
+nest CommerceConfiguration
+{
+    taxation
+    {
+        rate: Percentage = 7.25
+    }
+
+    shipping
+    {
+        free_threshold: Money = 100.00
+        standard_cost: Money = 8.95
+    }
+
+    processing
+    {
+        max_items_per_order: u32 = 128
+        worker_count: u32 = 4
+    }
+
+    storage
+    {
+        report_path: text = "raygen_order_report.txt"
+        audit_path: text = "raygen_order_audit.rgd"
+    }
+}
+
+
+const CONFIGURATION: CommerceConfiguration =
+{
+    taxation
+    {
+        rate = 7.25
+    }
+
+    shipping
+    {
+        free_threshold = 100.00
+        standard_cost = 8.95
+    }
+
+    processing
+    {
+        max_items_per_order = 128
+        worker_count = 4
+    }
+
+    storage
+    {
+        report_path = "raygen_order_report.txt"
+        audit_path = "raygen_order_audit.rgd"
+    }
+}
+
+
+# ------------------------------------------------------------
+# Typed tables
+# ------------------------------------------------------------
+
+table Products
+{
+    id: ProductId key
+    name: text index
+    category: ProductCategory index
+    price: Money
+    stock: StockCount
+    active: bool
+}
+
+
+table Customers
+{
+    id: CustomerId key
+    name: text
+    email: text index
+    discount: Percentage
+    active: bool
+}
+
+
+table InventoryAudit
+{
+    order_id: OrderId index
+    product_id: ProductId index
+    previous_stock: StockCount
+    quantity_removed: Quantity
+    remaining_stock: StockCount
+    timestamp: u64 index
+}
+
+
+# ------------------------------------------------------------
+# Reporting tree
+# ------------------------------------------------------------
+
+record ReportNode
+{
+    title: text
+    value: text
+}
+
+
+tree<ReportNode> report_tree =
+{
+    node ReportNode
+    {
+        title = "Commerce Report"
+        value = ""
+    }
+}
+
+
+# ------------------------------------------------------------
+# Traits
+# ------------------------------------------------------------
+
+trait Printable
+{
+    function print(self) -> void
+}
+
+
+implement Printable for ProcessedOrder
+{
+    function print(self) -> void
+    {
+        emit "--------------------------------------------------"
+        emit "Order: " + text(self.id)
+        emit "Customer: " + self.customer_name
+        emit "Status: " + text(self.status)
+        emit "Processed at: " + text(self.processed_at)
+        emit ""
+
+        each item in self.items
+        {
+            emit
+                item.product_name
+                + " x"
+                + text(item.quantity)
+                + " @ $"
+                + money_text(item.unit_price)
+                + " = $"
+                + money_text(item.line_total)
+        }
+
+        emit ""
+        emit "Subtotal: $" + money_text(self.totals.subtotal)
+        emit "Discount: $" + money_text(self.totals.discount)
+        emit "Tax: $" + money_text(self.totals.tax)
+        emit "Shipping: $" + money_text(self.totals.shipping)
+        emit "Grand total: $" + money_text(self.totals.grand_total)
+        emit "--------------------------------------------------"
+    }
+}
+
+
+# ------------------------------------------------------------
+# Formatting functions
+# ------------------------------------------------------------
+
+function money_text(value: Money) -> text
+{
+    return format_decimal(value, digits = 2)
+}
+
+
+function category_text(category: ProductCategory) -> text
+{
+    map category direct
+    {
+        electronics -> return "Electronics"
+        household   -> return "Household"
+        food        -> return "Food"
+        books       -> return "Books"
+        clothing    -> return "Clothing"
+        tools       -> return "Tools"
+        unknown     -> return "Unknown"
+    }
+}
+
+
+# ------------------------------------------------------------
+# Initialization
+# ------------------------------------------------------------
+
+function seed_products() -> void
+{
+    Products.insert
+    {
+        id = ProductId(1001)
+        name = "Vector Keyboard"
+        category = electronics
+        price = Money(79.95)
+        stock = 25
+        active = true
+    }
+
+    Products.insert
+    {
+        id = ProductId(1002)
+        name = "Rayword Processor"
+        category = electronics
+        price = Money(249.50)
+        stock = 8
+        active = true
+    }
+
+    Products.insert
+    {
+        id = ProductId(1003)
+        name = "Structured Cooking Set"
+        category = household
+        price = Money(54.75)
+        stock = 16
+        active = true
+    }
+
+    Products.insert
+    {
+        id = ProductId(1004)
+        name = "Compiler Construction Handbook"
+        category = books
+        price = Money(46.25)
+        stock = 31
+        active = true
+    }
+
+    Products.insert
+    {
+        id = ProductId(1005)
+        name = "Ordered Layer Tool Kit"
+        category = tools
+        price = Money(128.00)
+        stock = 11
+        active = true
+    }
+
+    Products.insert
+    {
+        id = ProductId(1006)
+        name = "Direct Mapping Jacket"
+        category = clothing
+        price = Money(89.99)
+        stock = 14
+        active = true
+    }
+}
+
+
+function seed_customers() -> void
+{
+    Customers.insert
+    {
+        id = CustomerId(5001)
+        name = "Mira Vale"
+        email = "mira@example.test"
+        discount = Percentage(5.0)
+        active = true
+    }
+
+    Customers.insert
+    {
+        id = CustomerId(5002)
+        name = "Arden Sol"
+        email = "arden@example.test"
+        discount = Percentage(10.0)
+        active = true
+    }
+
+    Customers.insert
+    {
+        id = CustomerId(5003)
+        name = "Tessa Ray"
+        email = "tessa@example.test"
+        discount = Percentage(0.0)
+        active = true
+    }
+}
+
+
+function build_orders() -> listing<Order>
+{
+    var orders: listing<Order> = []
+
+    orders.add
+    (
+        Order
+        {
+            id = OrderId(9001)
+            customer_id = CustomerId(5001)
+            payment = card
+            status = pending
+
+            items =
+            [
+                OrderItem
+                {
+                    product_id = ProductId(1001)
+                    quantity = Quantity(2)
+                },
+
+                OrderItem
+                {
+                    product_id = ProductId(1004)
+                    quantity = Quantity(1)
+                }
+            ]
+        }
+    )
+
+    orders.add
+    (
+        Order
+        {
+            id = OrderId(9002)
+            customer_id = CustomerId(5002)
+            payment = wallet
+            status = pending
+
+            items =
+            [
+                OrderItem
+                {
+                    product_id = ProductId(1002)
+                    quantity = Quantity(1)
+                },
+
+                OrderItem
+                {
+                    product_id = ProductId(1005)
+                    quantity = Quantity(2)
+                }
+            ]
+        }
+    )
+
+    orders.add
+    (
+        Order
+        {
+            id = OrderId(9003)
+            customer_id = CustomerId(5003)
+            payment = bank
+            status = pending
+
+            items =
+            [
+                OrderItem
+                {
+                    product_id = ProductId(1006)
+                    quantity = Quantity(3)
+                },
+
+                OrderItem
+                {
+                    product_id = ProductId(1003)
+                    quantity = Quantity(1)
+                }
+            ]
+        }
+    )
+
+    orders.add
+    (
+        Order
+        {
+            id = OrderId(9004)
+            customer_id = CustomerId(5001)
+            payment = card
+            status = pending
+
+            items =
+            [
+                OrderItem
+                {
+                    product_id = ProductId(1002)
+                    quantity = Quantity(20)
+                }
+            ]
+        }
+    )
+
+    return orders
+}
+
+
+# ------------------------------------------------------------
+# Lookup functions
+# ------------------------------------------------------------
+
+function find_customer(
+    id: CustomerId
+) -> allow<Customer> deny<OrderError>
+{
+    let matched =
+        Customers
+        |> where row.id == id
+
+    if matched.length == 0
+    {
+        return deny invalid_customer(id)
+    }
+
+    let customer = matched.first()
+
+    if customer.active == false
+    {
+        return deny invalid_customer(id)
+    }
+
+    return allow customer
+}
+
+
+function find_product(
+    id: ProductId
+) -> allow<Product> deny<OrderError>
+{
+    let matched =
+        Products
+        |> where row.id == id
+
+    if matched.length == 0
+    {
+        return deny product_missing(id)
+    }
+
+    let product = matched.first()
+
+    if product.active == false
+    {
+        return deny product_missing(id)
+    }
+
+    return allow product
+}
+
+
+# ------------------------------------------------------------
+# Validation
+# ------------------------------------------------------------
+
+function validate_order(
+    order: read Order
+) -> allow<Customer> deny<OrderError>
+{
+    if order.items.length == 0
+    {
+        return deny empty_order
+    }
+
+    if order.items.length > CONFIGURATION.processing.max_items_per_order
+    {
+        return deny calculation_failure
+        (
+            "Order exceeds the maximum number of items."
+        )
+    }
+
+    let customer =
+        allow find_customer(order.customer_id)
+
+    each requested in order.items
+    {
+        let product =
+            allow find_product(requested.product_id)
+
+        if requested.quantity == 0
+        {
+            return deny invalid_quantity(requested.product_id)
+        }
+
+        if product.stock < requested.quantity
+        {
+            return deny insufficient_stock
+            (
+                requested.product_id,
+                requested.quantity,
+                product.stock
+            )
+        }
+    }
+
+    return allow customer
+}
+
+
+# ------------------------------------------------------------
+# Pricing
+# ------------------------------------------------------------
+
+function price_items(
+    order: read Order
+) -> allow<listing<PricedItem>> deny<OrderError>
+{
+    var priced: listing<PricedItem> = []
+
+    each requested in order.items
+    {
+        let product =
+            allow find_product(requested.product_id)
+
+        let line_total: Money =
+            Money
+            (
+                product.price
+                * cast<f64>(requested.quantity)
+            )
+
+        priced.add
+        (
+            PricedItem
+            {
+                product_id = product.id
+                product_name = product.name
+                quantity = requested.quantity
+                unit_price = product.price
+                line_total = line_total
+            }
+        )
+    }
+
+    return allow priced
+}
+
+
+function calculate_totals(
+    customer: read Customer,
+    priced_items: read listing<PricedItem>
+) -> allow<OrderTotals> deny<OrderError>
+{
+    if priced_items.length == 0
+    {
+        return deny empty_order
+    }
+
+    var subtotal: Money = Money(0.0)
+
+    math loop vector<256> index in 0 ..< priced_items.length
+    {
+        set subtotal <-
+            Money
+            (
+                subtotal
+                + priced_items[index].line_total
+            )
+    }
+
+    let discount: Money =
+        Money
+        (
+            subtotal
+            * customer.discount
+            / 100.0
+        )
+
+    let taxable_amount: Money =
+        Money(subtotal - discount)
+
+    let tax: Money =
+        Money
+        (
+            taxable_amount
+            * CONFIGURATION.taxation.rate
+            / 100.0
+        )
+
+    let shipping: Money =
+        select taxable_amount >= CONFIGURATION.shipping.free_threshold
+        {
+            case true =>
+                Money(0.0)
+
+            case false =>
+                CONFIGURATION.shipping.standard_cost
+        }
+
+    derive grand_total
+        from subtotal, discount, tax, shipping
+    {
+        grand_total =
+            Money
+            (
+                subtotal
+                - discount
+                + tax
+                + shipping
+            )
+    }
+
+    return allow
+        OrderTotals
+        {
+            subtotal = subtotal
+            discount = discount
+            tax = tax
+            shipping = shipping
+            grand_total = grand_total
+        }
+}
+
+
+# ------------------------------------------------------------
+# Payment processing
+# ------------------------------------------------------------
+
+function authorize_payment(
+    method: PaymentMethod,
+    amount: Money
+) -> allow<bool> deny<OrderError>
+{
+    map method direct
+    {
+        card ->
+        {
+            if amount > Money(5000.0)
+            {
+                return deny payment_denied
+                (
+                    "Card transaction exceeds the authorization limit."
+                )
+            }
+
+            return allow true
+        }
+
+        bank ->
+        {
+            return allow true
+        }
+
+        wallet ->
+        {
+            if amount > Money(2500.0)
+            {
+                return deny payment_denied
+                (
+                    "Wallet transaction exceeds the authorization limit."
+                )
+            }
+
+            return allow true
+        }
+
+        cash ->
+        {
+            if amount > Money(500.0)
+            {
+                return deny payment_denied
+                (
+                    "Cash orders must remain below $500."
+                )
+            }
+
+            return allow true
+        }
+    }
+}
+
+
+# ------------------------------------------------------------
+# Inventory mutation
+# ------------------------------------------------------------
+
+function reserve_inventory(
+    order_id: OrderId,
+    items: read listing<PricedItem>
+) -> allow<listing<InventoryChange>> deny<OrderError>
+{
+    var changes: listing<InventoryChange> = []
+
+    each item in items
+    {
+        let product =
+            allow find_product(item.product_id)
+
+        if product.stock < item.quantity
+        {
+            return deny insufficient_stock
+            (
+                item.product_id,
+                item.quantity,
+                product.stock
+            )
+        }
+
+        let remaining: StockCount =
+            product.stock - item.quantity
+
+        Products.update
+        where row.id == item.product_id
+        {
+            set row.stock <- remaining
+        }
+
+        let change =
+            InventoryChange
+            {
+                product_id = item.product_id
+                previous_stock = product.stock
+                quantity_removed = item.quantity
+                remaining_stock = remaining
+            }
+
+        changes.add(change)
+
+        InventoryAudit.insert
+        {
+            order_id = order_id
+            product_id = item.product_id
+            previous_stock = product.stock
+            quantity_removed = item.quantity
+            remaining_stock = remaining
+            timestamp = clock.unix()
+        }
+    }
+
+    return allow changes
+}
+
+
+# ------------------------------------------------------------
+# Order processing
+# ------------------------------------------------------------
+
+function process_order(
+    order: read Order
+) -> allow<ProcessedOrder> deny<OrderError>
+{
+    let customer =
+        allow validate_order(order)
+
+    let priced_items =
+        allow price_items(order)
+
+    sort priced_items
+        by product_name ascending
+
+    let totals =
+        allow calculate_totals
+        (
+            customer,
+            priced_items
+        )
+
+    let payment_approved =
+        allow authorize_payment
+        (
+            order.payment,
+            totals.grand_total
+        )
+
+    deduce approved_payment
+    {
+        require payment_approved == true
+    }
+
+    let inventory_changes =
+        allow reserve_inventory
+        (
+            order.id,
+            priced_items
+        )
+
+    dismiss inventory_changes
+
+    let completed =
+        ProcessedOrder
+        {
+            id = order.id
+            customer_name = customer.name
+            items = priced_items
+            totals = totals
+            status = completed
+            processed_at = clock.unix()
+        }
+
+    return allow completed
+}
+
+
+# ------------------------------------------------------------
+# Error reporting
+# ------------------------------------------------------------
+
+function error_text(error: OrderError) -> text
+{
+    select error
+    {
+        case product_missing(id)
+        {
+            return
+                "Product "
+                + text(id)
+                + " does not exist or is inactive."
+        }
+
+        case insufficient_stock(id, requested, available)
+        {
+            return
+                "Insufficient stock for product "
+                + text(id)
+                + ". Requested "
+                + text(requested)
+                + ", available "
+                + text(available)
+                + "."
+        }
+
+        case invalid_quantity(id)
+        {
+            return
+                "Invalid quantity for product "
+                + text(id)
+                + "."
+        }
+
+        case invalid_customer(id)
+        {
+            return
+                "Customer "
+                + text(id)
+                + " does not exist or is inactive."
+        }
+
+        case payment_denied(reason)
+        {
+            return "Payment denied: " + reason
+        }
+
+        case empty_order
+        {
+            return "The order contains no items."
+        }
+
+        case calculation_failure(reason)
+        {
+            return "Calculation failure: " + reason
+        }
+
+        case storage_failure(reason)
+        {
+            return "Storage failure: " + reason
+        }
+    }
+}
+
+
+# ------------------------------------------------------------
+# Reporting
+# ------------------------------------------------------------
+
+function generate_report(
+    processed: read listing<ProcessedOrder>,
+    denied_count: u64
+) -> OrderReport
+{
+    var revenue: Money = Money(0.0)
+    var largest_order: Money = Money(0.0)
+
+    each order in processed
+    {
+        set revenue <-
+            Money
+            (
+                revenue
+                + order.totals.grand_total
+            )
+
+        if order.totals.grand_total > largest_order
+        {
+            set largest_order <-
+                order.totals.grand_total
+        }
+    }
+
+    let average: Money =
+        select processed.length > 0
+        {
+            case true =>
+                Money
+                (
+                    revenue
+                    / cast<f64>(processed.length)
+                )
+
+            case false =>
+                Money(0.0)
+        }
+
+    return
+        OrderReport
+        {
+            processed_count = processed.length
+            denied_count = denied_count
+            revenue = revenue
+            average_order_value = average
+            largest_order = largest_order
+        }
+}
+
+
+function report_as_text(
+    report: read OrderReport
+) -> text
+{
+    return
+        "RAYGEN COMMERCE REPORT\n"
+        + "=======================\n"
+        + "Processed orders: "
+        + text(report.processed_count)
+        + "\nDenied orders: "
+        + text(report.denied_count)
+        + "\nRevenue: $"
+        + money_text(report.revenue)
+        + "\nAverage order: $"
+        + money_text(report.average_order_value)
+        + "\nLargest order: $"
+        + money_text(report.largest_order)
+        + "\n"
+}
+
+
+function build_report_tree(
+    report: read OrderReport
+) -> tree<ReportNode>
+{
+    return
+    {
+        node ReportNode
+        {
+            title = "Commerce Report"
+            value = ""
+        }
+        {
+            node ReportNode
+            {
+                title = "Processed Orders"
+                value = text(report.processed_count)
+            }
+
+            node ReportNode
+            {
+                title = "Denied Orders"
+                value = text(report.denied_count)
+            }
+
+            node ReportNode
+            {
+                title = "Revenue"
+                value = "$" + money_text(report.revenue)
+            }
+
+            node ReportNode
+            {
+                title = "Average Order"
+                value = "$" + money_text(report.average_order_value)
+            }
+
+            node ReportNode
+            {
+                title = "Largest Order"
+                value = "$" + money_text(report.largest_order)
+            }
+        }
+    }
+}
+
+
+# ------------------------------------------------------------
+# Inventory display
+# ------------------------------------------------------------
+
+function display_inventory() -> void
+{
+    let inventory =
+        Products
+        |> order row.category ascending
+        |> then row.name ascending
+
+    emit ""
+    emit "CURRENT INVENTORY"
+    emit "================="
+
+    each product in inventory
+    {
+        emit
+            "["
+            + category_text(product.category)
+            + "] "
+            + product.name
+            + " | Stock: "
+            + text(product.stock)
+            + " | $"
+            + money_text(product.price)
+    }
+}
+
+
+# ------------------------------------------------------------
+# Main origin
+# ------------------------------------------------------------
+
+origin main
+{
+    policy production
+    {
+        deny null_access
+        deny bounds_violation
+        deny division_by_zero
+        deny arithmetic_overflow
+        deny data_race
+        deny unchecked_denial
+    }
+
+    region application_memory
+    {
+        capacity = 64:mb
+        alignment = 64
+        release = origin_end
+    }
+
+    emit "Raygen Commerce Order Engine"
+    emit "============================"
+    emit ""
+
+    seed_products()
+    seed_customers()
+
+    retain var pending_orders =
+        build_orders()
+
+    retain var completed_orders:
+        listing<ProcessedOrder> = []
+
+    var denied_messages:
+        listing<text> = []
+
+    var denied_count: u64 = 0
+
+    sort pending_orders
+        by id ascending
+
+    #[
+        Each case processes one order independently.
+
+        Inventory mutation is committed during the ordered merge
+        phase so that final stock changes remain deterministic.
+    ]#
+
+    var order_results:
+        listing<allow<ProcessedOrder> deny<OrderError>> = []
+
+    each order in pending_orders
+    {
+        case process_current_order
+        {
+            use read order
+            output processing_result
+
+            set processing_result <-
+                process_order(order)
+        }
+
+        spawn case process_current_order
+        wait process_current_order
+
+        let result =
+            result process_current_order
+
+        order_results.add(result)
+    }
+
+    layers result_pipeline
+    {
+        layer classify
+        {
+            parallel
+            {
+                each result in order_results
+                {
+                    allow result as completed_order
+                    {
+                        completed_orders.add(completed_order)
+                    }
+                }
+            }
+
+            parallel
+            {
+                each result in order_results
+                {
+                    deny result as error
+                    {
+                        set denied_count <-
+                            denied_count + 1
+
+                        denied_messages.add
+                        (
+                            error_text(error)
+                        )
+                    }
+                }
+            }
+        }
+
+        layer order_results
+        {
+            parallel
+            {
+                sort completed_orders
+                    by totals.grand_total descending
+            }
+
+            parallel
+            {
+                sort denied_messages ascending
+            }
+        }
+
+        merge
+        {
+            emit ""
+            emit "ORDER RESULTS"
+            emit "============="
+
+            each completed_order in completed_orders
+            {
+                completed_order.print()
+            }
+
+            if denied_messages.length > 0
+            {
+                emit ""
+                emit "DENIED ORDERS"
+                emit "============="
+
+                each message in denied_messages
+                {
+                    emit "- " + message
+                }
+            }
+        }
+    }
+
+    derive report
+        from completed_orders, denied_count
+    {
+        report =
+            generate_report
+            (
+                completed_orders,
+                denied_count
+            )
+    }
+
+    let printable_report =
+        report_as_text(report)
+
+    set report_tree <-
+        build_report_tree(report)
+
+    cases output_operations
+    {
+        case write_text_report
+        {
+            use read printable_report
+            output text_write_result
+
+            set text_write_result <-
+                file.write_text
+                (
+                    CONFIGURATION.storage.report_path,
+                    printable_report
+                )
+        }
+
+        case write_audit_table
+        {
+            use read InventoryAudit
+            output audit_write_result
+
+            set audit_write_result <-
+                file.write_table
+                (
+                    CONFIGURATION.storage.audit_path,
+                    InventoryAudit
+                )
+        }
+
+        case display_final_inventory
+        {
+            display_inventory()
+        }
+    }
+
+    spawn case write_text_report
+    spawn case write_audit_table
+    spawn case display_final_inventory
+
+    wait output_operations
+
+    emit ""
+    emit printable_report
+
+    allow result write_text_report
+    {
+        emit
+            "Text report stored at: "
+            + CONFIGURATION.storage.report_path
+    }
+    deny result write_text_report as error
+    {
+        emit
+            "Report write denied: "
+            + text(error)
+    }
+
+    allow result write_audit_table
+    {
+        emit
+            "Inventory audit stored at: "
+            + CONFIGURATION.storage.audit_path
+    }
+    deny result write_audit_table as error
+    {
+        emit
+            "Audit write denied: "
+            + text(error)
+    }
+
+    emit ""
+    emit "REPORT TREE"
+    emit "==========="
+
+    walk report_tree depth_first as entry
+    {
+        if entry.value == ""
+        {
+            emit entry.title
+        }
+        else
+        {
+            emit
+                entry.title
+                + ": "
+                + entry.value
+        }
+    }
+
+    dismiss order_results
+    dismiss denied_messages
+    dismiss report_tree
+
+    free completed_orders
+    free pending_orders
+
+    emit ""
+    emit "Execution completed successfully."
+}
