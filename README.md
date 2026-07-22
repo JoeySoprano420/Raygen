@@ -1,3 +1,3324 @@
+# Raygen Programming Language
+
+** UPDATED VERSION 07/22/2026 **
+
+# Raygen Programming Language
+
+## Normative Core Specification
+
+File extension: .rg1  
+Official name: Raygen  
+Meaning: Ray Generator  
+Edition: Raygen 1  
+Specification status: Normative Core
+
+A geometric ray begins at one fixed origin and extends in a defined direction. Raygen applies this principle to software execution:
+
+> Every operation begins from a known state, proceeds through an explicit direction, and produces a traceable result.
+
+The ray is Raygen’s semantic execution model. It does not require a physical ray object, linked allocation, pointer chain, or metadata header.
+
+The normative foundation of Raygen is:
+
+> Meaning comes first.  
+> Safety constrains execution.  
+> Ownership constrains access.  
+> Concurrency constrains visibility.  
+> Layout constrains representation.  
+> Deduction removes only proven checks.  
+> Optimization changes implementation, never meaning.
+
+This specification defines the rules every conforming Raygen compiler, interpreter, virtual machine, static analyzer, and runtime must follow.
+
+---
+
+# 1. Scope
+
+The Raygen Normative Core Specification defines:
+
+- Compilation-stage precedence
+- Policy classes and policy resolution
+- Lexical and syntactic grammar
+- Operator precedence
+- Type and ownership interactions
+- Static and dynamic derivation
+- Case-based concurrency
+- Ordered-layer parallelism
+- Atomic operations
+- Memory ordering
+- Synchronization
+- Determinism levels
+- Core-language boundaries
+- Standard-library boundaries
+- Compiler conformance requirements
+
+Descriptive documentation can explain how Raygen feels and why features exist.
+
+This document defines what Raygen programs mean.
+
+---
+
+# 2. Normative Terminology
+
+The words must, must not, required, shall, and shall not express mandatory implementation requirements.
+
+The words may, optional, and permitted describe implementation freedom.
+
+The word should describes a strongly recommended behavior that may be omitted only for a documented reason.
+
+A compiler that violates a mandatory requirement is not conformant with the relevant Raygen conformance level.
+
+---
+
+# 3. Semantic Authority
+
+Every Raygen program is governed by the following authority hierarchy, from strongest to weakest:
+
+text Language semantics     > type safety     > ownership and lifetime     > concurrency correctness     > explicit layout requirements     > explicit semantic policies     > explicit safety policies     > deduction results     > optimization requirements     > optimization preferences     > target heuristics 
+
+A lower-ranked system may not invalidate a higher-ranked system.
+
+Examples:
+
+- Vectorization cannot weaken ownership.
+- Layout selection cannot violate ABI requirements.
+- Deduction cannot remove a check whose proof is invalid after alias analysis.
+- A target heuristic cannot override required overflow behavior.
+- Parallelization cannot introduce a data race.
+- Inlining cannot alter observable denial propagation.
+- Dispatch optimization cannot change mapping completeness.
+
+---
+
+# 4. Compilation Precedence
+
+A conforming compiler processes a program according to the following semantic order:
+
+text 1. Parse lexical and syntactic structure 2. Resolve modules, imports, and names 3. Resolve declared types 4. Validate type legality 5. Validate ownership and lifetime 6. Validate control-flow legality 7. Validate failure-flow completeness 8. Validate concurrency access contracts 9. Apply mandatory layout constraints 10. Establish aliasing and provenance facts 11. Perform bounded deduction 12. Select required runtime guards 13. Apply vectorization and parallel optimization 14. Lower high-level directives 15. Generate assembly serial 16. Resolve symbolic tags and relocations 17. Emit verified VM code or native code 
+
+Implementations may internally combine stages, but the resulting behavior must be equivalent to this ordering.
+
+## 4.1 Safety Before Optimization
+
+Correctness is established before optimization.
+
+A compiler must never generate unsafe code merely because an optimization was requested.
+
+Example:
+
+rg1 policy vectorization {     mode forced } 
+
+rg1 function transform(     input: read slice<f32>,     output: write slice<f32> ) -> void {     ... } 
+
+If the compiler cannot establish safe aliasing conditions, it must do one of the following:
+
+- Generate a guarded vector path with a safe fallback
+- Generate a scalar implementation when the policy permits fallback
+- Deny compilation when vectorization is explicitly required
+
+It must not silently emit unsafe vector code.
+
+---
+
+# 5. Policy System
+
+Raygen policies are scoped semantic declarations.
+
+Every policy belongs to one of five classes:
+
+text semantic safety optimization diagnostic deployment 
+
+---
+
+# 6. Semantic Policies
+
+Semantic policies change observable program behavior.
+
+Examples include:
+
+- Overflow behavior
+- Floating-point rounding
+- Failure propagation
+- Memory ordering
+- Dispatch completeness
+- Numerical reproducibility
+- Denial recovery
+
+Example:
+
+rg1 policy arithmetic semantic {     allow overflow wrap } 
+
+The optimizer must preserve semantic policies exactly.
+
+It cannot replace wrapping addition with trapping addition, saturating addition, or mathematically unbounded addition.
+
+Supported arithmetic behaviors include:
+
+text deny wrap saturate clamp report widen 
+
+---
+
+# 7. Safety Policies
+
+Safety policies define operations that must be checked, rejected, or guarded.
+
+Examples include:
+
+- Bounds checking
+- Null access
+- Pointer provenance
+- Data-race prevention
+- Unchecked denial
+- Foreign calls
+- Unsafe deserialization
+- Lifetime violations
+
+Example:
+
+rg1 policy safety safety {     deny bounds_violation     deny data_race     deny unchecked_denial } 
+
+Safety policies override optimization policies.
+
+An optimization may remove a safety check only when a valid proof establishes that the check cannot fail.
+
+---
+
+# 8. Optimization Policies
+
+Optimization policies influence code generation without changing program meaning.
+
+Examples include:
+
+- Vectorization
+- Inlining
+- Loop unrolling
+- Dispatch strategy
+- Code-size preference
+- Layout preference
+- Task fusion
+- Register pressure
+- Cache placement
+
+Example:
+
+rg1 policy optimization optimization {     vectorization automatic     code_size balanced     inlining profiled } 
+
+Optimization policies are advisory unless marked require.
+
+rg1 policy vectorization optimization {     require width 256 } 
+
+If a required optimization cannot be performed without violating stronger rules, compilation is denied.
+
+Example diagnostic:
+
+text RG-OPT-021: Required 256-bit vectorization cannot be satisfied. Reason: loop-carried dependency on 'total'. 
+
+---
+
+# 9. Diagnostic Policies
+
+Diagnostic policies control compiler reporting.
+
+rg1 policy diagnostics diagnostic {     warning unused_binding     deny implicit_copy     note scalar_fallback } 
+
+Diagnostic policies cannot change program behavior.
+
+They may promote warnings to denials or suppress nonessential notices.
+
+They may not suppress mandatory safety errors.
+
+---
+
+# 10. Deployment Policies
+
+Deployment policies govern build and runtime environment restrictions.
+
+rg1 policy deployment deployment {     target x86_64     runtime minimal     foreign_calls audited     direct_blocks signed } 
+
+Deployment policies can restrict:
+
+- Targets
+- Runtime components
+- Dynamic loading
+- Foreign functions
+- Direct memory access
+- Code generation
+- Heap allocation
+- Package sources
+
+---
+
+# 11. Policy Scope and Resolution
+
+Policies apply in the following order, from nearest to farthest scope:
+
+text Expression Statement Block Function Type Module Package Build profile Language default 
+
+The nearest applicable policy wins unless a wider policy is marked mandatory.
+
+Example:
+
+rg1 policy arithmetic semantic {     deny overflow mandatory } 
+
+A nested policy cannot override it:
+
+rg1 policy arithmetic semantic {     allow overflow wrap } 
+
+Compiler diagnostic:
+
+text RG-POLICY-012: Local overflow policy conflicts with mandatory module policy. 
+
+## 11.1 Policy Conflicts
+
+If two policies at the same scope conflict:
+
+- A mandatory policy wins over a nonmandatory policy.
+- A safety policy wins over an optimization policy.
+- A semantic policy cannot be replaced by an optimization policy.
+- Two conflicting mandatory policies produce a compile-time denial.
+- Two incompatible semantic policies produce a compile-time denial.
+
+---
+
+# 12. Lexical Grammar
+
+Raygen source files use Unicode text encoded as UTF-8.
+
+A conforming compiler must reject malformed UTF-8.
+
+## 12.1 Identifiers
+
+Identifiers begin with:
+
+- A Unicode letter
+- An underscore
+
+Subsequent characters may include:
+
+- Unicode letters
+- Decimal digits
+- Underscores
+
+Examples:
+
+rg1 value _total customer_id Δposition 
+
+Keywords are reserved and cannot be used as ordinary identifiers unless escaped by a future edition-defined mechanism.
+
+---
+
+## 12.2 Keywords
+
+Core reserved words include:
+
+text raygen module use as public private function origin record unit choice type alias trait implement let var late set return if else while repeat each in select case other allow deny retain store dismiss free derive dynamic deduce requires ensures policy mandatory map direct layers layer parallel merge spawn wait move copy read write own atomic locked volatile region scope defer where when compile generate true false void never 
+
+---
+
+## 12.3 Numeric Literals
+
+Decimal integer:
+
+rg1 42 1_000_000 
+
+Hexadecimal integer:
+
+rg1 0xFF 0xFF00_1000 
+
+Binary integer:
+
+rg1 0b1010_0101 
+
+Floating-point:
+
+rg1 3.14159 1.0e-9 
+
+Typed suffix:
+
+rg1 42:u8 4096:usize 3.14:f32 
+
+Underscores may separate digits but cannot appear at the beginning or end of a literal or immediately beside a radix marker or decimal point.
+
+---
+
+## 12.4 Strings
+
+Standard string:
+
+rg1 "Hello, world!" 
+
+Escape sequences include:
+
+text \n \r \t \\ \" \0 \u{...} 
+
+Multiline string:
+
+rg1 """ Line one Line two """ 
+
+Multiline strings preserve embedded newlines.
+
+Indent normalization is defined by the standard formatter and must not alter semantic content.
+
+---
+
+## 12.5 Comments
+
+Single-line comment:
+
+rg1 # Comment 
+
+Block comment:
+
+rg1 #[     Block comment ]# 
+
+Documentation comment:
+
+rg1 ## Public documentation 
+
+Block comments may nest only if the implementation supports nested comment counting exactly as defined by the language edition.
+
+Raygen 1 permits nested block comments.
+
+---
+
+## 12.6 Terminators
+
+A statement terminates with:
+
+- A newline
+- A semicolon
+- The closing brace of a block when the preceding construct is complete
+
+Semicolon insertion must not occur inside:
+
+- Parentheses
+- Brackets
+- Generic-argument lists
+- Incomplete expressions
+- Pipeline continuations
+
+Example:
+
+rg1 let result =     values     |> where row.active     |> order row.name ascending 
+
+This is one statement.
+
+---
+
+# 13. Syntactic Grammar
+
+The following EBNF defines the foundational Raygen grammar.
+
+ebnf program     = version-declaration,       { module-item },       EOF ;  version-declaration     = "raygen",       integer-literal,       terminator ;  module-item     = module-declaration     | use-declaration     | declaration     | origin-declaration     | policy-declaration ;  module-declaration     = "module",       qualified-name,       terminator ;  use-declaration     = "use",       qualified-name,       [ import-selection | alias-clause ],       terminator ;  import-selection     = "{",       identifier,       { ",", identifier },       "}" ;  alias-clause     = "as",       identifier ;  declaration     = function-declaration     | record-declaration     | unit-declaration     | choice-declaration     | type-declaration     | alias-declaration     | trait-declaration     | implementation-declaration     | constant-declaration ;  origin-declaration     = "origin",       identifier,       block ;  function-declaration     = [ visibility ],       "function",       identifier,       [ generic-parameters ],       parameter-list,       [ return-contract ],       { function-contract },       function-body ;  visibility     = "public"     | "private" ;  parameter-list     = "(",       [ parameter,       { ",", parameter } ],       ")" ;  parameter     = [ access-mode ],       identifier,       ":",       type-expression,       [ "=", expression ] ;  access-mode     = "own"     | "read"     | "write"     | "move"     | "atomic"     | "locked" ;  return-contract     = "->",       return-type ;  return-type     = type-expression     | allowed-type, denied-type     | "void"     | "never" ;  allowed-type     = "allow",       "<",       type-expression,       ">" ;  denied-type     = "deny",       "<",       type-expression,       ">" ;  function-contract     = requires-clause     | ensures-clause ;  requires-clause     = "requires",       expression ;  ensures-clause     = "ensures",       expression ;  function-body     = block     | "=>",       expression,       terminator ;  block     = "{",       { statement },       "}" ;  statement     = binding-statement     | mutation-statement     | expression-statement     | return-statement     | if-statement     | while-statement     | repeat-statement     | each-statement     | select-statement     | allow-statement     | deny-statement     | derive-statement     | deduce-statement     | case-declaration     | cases-statement     | layers-statement     | memory-statement     | policy-declaration     | direct-statement     | block ;  binding-statement     = ( "let" | "var" | "late" ),       identifier,       [ ":",       type-expression ],       [ "=",       expression ],       terminator ;  mutation-statement     = "set",       assignable-expression,       "<-",       expression,       terminator ;  return-statement     = "return",       [ "allow" | "deny" ],       [ expression ],       terminator ;  expression-statement     = expression,       terminator ;  terminator     = newline     | ";" ; 
+
+The complete grammar is divided into:
+
+text Raygen Lexical Grammar Raygen Syntactic Grammar Raygen Expression Grammar Raygen Structural-Sugar Grammar 
+
+Privileged standard-library syntax is specified separately from the language kernel.
+
+---
+
+# 14. Operator Precedence
+
+Raygen expressions use the following precedence, from highest to lowest:
+
+| Level | Operations |
+|---:|---|
+| 1 | Member access, indexing, function calls |
+| 2 | Explicit casts, checked casts, views |
+| 3 | Unary operators |
+| 4 | Multiplication, division, remainder |
+| 5 | Addition, subtraction |
+| 6 | Shifts |
+| 7 | Bitwise AND |
+| 8 | Bitwise XOR |
+| 9 | Bitwise OR |
+| 10 | Relational comparisons |
+| 11 | Equality |
+| 12 | Logical AND |
+| 13 | Logical OR |
+| 14 | Ranges |
+| 15 | Pipelines |
+| 16 | Conditional expressions |
+| 17 | Assignment-like directives |
+
+Example:
+
+rg1 a + b * c 
+
+means:
+
+rg1 a + (b * c) 
+
+Example:
+
+rg1 value & mask == expected 
+
+means:
+
+rg1 (value & mask) == expected 
+
+---
+
+# 15. Pipeline Semantics
+
+The pipeline operator is:
+
+text |> 
+
+It has weak binding.
+
+rg1 let active_users =     users     |> where row.active     |> order row.name ascending 
+
+This is parsed as an ordered transformation sequence applied to users.
+
+A pipeline stage receives the previous stage’s result as its input.
+
+Pipeline syntax may lower into:
+
+- Function calls
+- Iterator adapters
+- Compiler-recognized collection operations
+- Privileged library interfaces
+
+Pipeline syntax does not imply eager or lazy evaluation by itself. The called operation or structural type determines evaluation behavior.
+
+---
+
+# 16. Static Derivation
+
+Static derivation declares a compile-time-known dependency graph.
+
+rg1 derive total from subtotal, tax pure {     total = subtotal + tax } 
+
+## 16.1 Static Derivation Rules
+
+1. Every external dependency read by the block must appear after from.
+2. Every derived output must be assigned exactly once.
+3. Derived outputs are immutable outside the block unless declared mutable.
+4. The static dependency graph must be acyclic.
+5. Dependency identity is lexical, typed, and module-resolved.
+6. A derived value is invalidated when one of its declared dependencies changes.
+7. Undeclared external reads are compile-time errors.
+8. Derivation is pure by default.
+9. A pure derivation cannot perform I/O, mutation of external state, synchronization, allocation with visible lifetime effects, or foreign calls.
+10. The compiler may cache a derived value when doing so preserves semantics.
+
+Example cycle:
+
+rg1 derive a from b {     a = b + 1 }  derive b from a {     b = a + 1 } 
+
+Compiler diagnostic:
+
+text RG-DERIVE-001: Static derivative cycle detected: a -> b -> a. 
+
+---
+
+# 17. Effectful Derivation
+
+A derivation with side effects must be marked effectful.
+
+rg1 derive audit_record     from transaction     effectful {     audit_record =         write_audit_entry(transaction) } 
+
+Effectful derivations must declare their effect capabilities.
+
+rg1 derive audit_record     from transaction     effectful     uses storage.write {     ... } 
+
+An effectful derivation is not freely reorderable or cacheable.
+
+The compiler may optimize it only when the effect system proves equivalence.
+
+---
+
+# 18. Dynamic Derivation
+
+Dynamic derivation supports runtime-changing dependency sets.
+
+rg1 derive dynamic state from dependencies policy {     consistency snapshot     cycle deny     update coalesced } {     state = evaluate(dependencies) } 
+
+## 18.1 Dynamic Derivation Rules
+
+1. Runtime dependencies may be inserted, removed, or replaced.
+2. Runtime cycle detection is mandatory.
+3. Every dependency-set version has a stable version identifier.
+4. Re-evaluation uses topological order where the runtime graph permits it.
+5. A failed re-evaluation produces a denial.
+6. Concurrent dependency changes obey the declared consistency policy.
+7. Partially evaluated results are not published unless the policy explicitly permits partial publication.
+8. Dynamic derivation has observable runtime cost.
+9. Dynamic dependency metadata is subject to ownership and lifetime rules.
+10. Runtime graph corruption produces a denial or trap according to the active safety profile.
+
+Supported consistency policies include:
+
+text snapshot serial transactional latest eventual 
+
+Supported update policies include:
+
+text immediate coalesced batched manual 
+
+Supported cycle policies include:
+
+text deny report isolate 
+
+---
+
+# 19. Deductive Reasoning
+
+Deduction establishes compile-time facts.
+
+rg1 deduce safe_index {     require index < values.length } 
+
+Deduction may prove:
+
+- Bounds
+- Initialization
+- Non-null state
+- Numeric ranges
+- Capacity
+- Ownership
+- Lifetime
+- Alignment
+- Pointer provenance
+- Case independence
+- Layer independence
+- Derivative acyclicity
+- Table-key uniqueness
+- Protocol-state legality
+
+## 19.1 Deduction Outcomes
+
+Every deduction produces one of three outcomes:
+
+text proven unproven disproven 
+
+### Proven
+
+The compiler may remove the corresponding runtime check.
+
+### Unproven
+
+The compiler retains or inserts a runtime guard.
+
+### Disproven
+
+Compilation is denied when the disproven fact is required for correctness.
+
+---
+
+## 19.2 Deduction Validity
+
+A proof is valid only if it remains correct after:
+
+- Layout resolution
+- Alias analysis
+- Ownership resolution
+- Target lowering
+- Concurrency analysis
+- Integer-width selection
+- Foreign-interface validation
+
+A compiler must invalidate a deduction if a later required analysis disproves one of its assumptions.
+
+---
+
+## 19.3 Deduction Budgets
+
+Deduction must be bounded.
+
+rg1 policy deduction optimization {     budget standard     fallback runtime_check } 
+
+Supported budgets include:
+
+text minimal standard extended unbounded_forbidden 
+
+Raygen 1 forbids truly unbounded compile-time deduction in conforming builds.
+
+---
+
+# 20. Case-Based Concurrency
+
+A case is a structured concurrent task.
+
+Every case has:
+
+- Lexical lifetime
+- Declared inputs
+- Declared outputs
+- Declared access capabilities
+- Completion state
+- Denial state
+- Cancellation behavior
+
+Example:
+
+rg1 case load_users {     use read database     output users      set users <- database.read_users() } 
+
+---
+
+# 21. Case Access Contracts
+
+Supported access contracts are:
+
+text read write move atomic locked exclusive snapshot transactional 
+
+## 21.1 Read
+
+Multiple read accesses may coexist.
+
+A read case cannot mutate the referenced resource through that access path.
+
+## 21.2 Write
+
+write access is exclusive unless synchronization is explicitly declared.
+
+## 21.3 Move
+
+move transfers ownership into the case.
+
+The source binding becomes unavailable after successful transfer.
+
+## 21.4 Atomic
+
+atomic access permits operations supported by the atomic type.
+
+## 21.5 Locked
+
+locked access requires an associated lock capability.
+
+## 21.6 Exclusive
+
+exclusive grants sole access to the resource for the case lifetime.
+
+## 21.7 Snapshot
+
+snapshot provides an immutable versioned view.
+
+## 21.8 Transactional
+
+transactional provides isolated mutation committed according to transaction policy.
+
+---
+
+# 22. Case Rules
+
+1. A case cannot access external mutable state without a declared access contract.
+2. Read access may coexist with other reads.
+3. Write access is exclusive unless atomic, locked, or transactional.
+4. Move access transfers ownership.
+5. Ordinary outputs become visible only after successful completion.
+6. A denied case publishes no partial ordinary outputs.
+7. A case cannot outlive its enclosing group unless declared detached.
+8. Cancellation propagates through the enclosing case group.
+9. Statistically detectable access conflicts must be rejected.
+10. Dynamic resource conflicts must be synchronized or denied at runtime.
+11. Completion establishes a happens-before relationship with output retrieval.
+12. Case-local storage is released according to its ownership policy.
+
+---
+
+# 23. Case Groups
+
+A case group defines completion and failure behavior.
+
+rg1 cases processing policy {     completion all     failure cancel_remaining } {     case load_users     {         ...     }      case load_orders     {         ...     } } 
+
+Supported completion policies:
+
+text all any first_allowed first_completed quorum 
+
+Supported failure policies:
+
+text continue cancel_remaining deny_group collect_denials retry 
+
+A quorum policy must declare the required count.
+
+rg1 completion quorum 3 
+
+---
+
+# 24. Detached Cases
+
+A detached case may outlive its lexical creator.
+
+rg1 case telemetry detached {     ... } 
+
+Detached cases require:
+
+- Explicit lifetime ownership
+- Explicit cancellation authority
+- Explicit output destination
+- Deployment permission
+
+Safety-critical profiles may prohibit detached cases.
+
+---
+
+# 25. Ordered-Layer Parallelism
+
+A layer is an ordered synchronization phase.
+
+rg1 layers frame {     layer update     {         parallel physics.update()         parallel animation.update()     }      layer render     {         parallel graphics.render()     }      merge     {         present()     } } 
+
+## 25.1 Layer Rules
+
+1. Layer N + 1 begins only after layer N completes.
+2. Operations within one layer may execute concurrently.
+3. A parallel operation may execute serially if necessary.
+4. Legal serial execution must preserve observable semantics.
+5. Shared mutation requires access contracts.
+6. Outputs become visible at the layer boundary.
+7. Merge executes after all required layers complete.
+8. Denial behavior is governed by the layer-group failure policy.
+9. Parallel reductions require ordering or associativity.
+10. Nondeterministic behavior must be explicit.
+11. Layer completion establishes a synchronization barrier.
+12. Layer implementation may use threads, workers, processes, GPU queues, or serial execution.
+
+---
+
+# 26. Parallel Reductions
+
+Integer addition can be declared associative only when overflow behavior preserves associativity under the selected type and policy.
+
+rg1 merge sum partials into total requires associative(add) 
+
+Floating-point addition is not assumed associative.
+
+Deterministic floating-point merge:
+
+rg1 merge ordered partials into total 
+
+Maximum-throughput merge:
+
+rg1 merge rapid partials into total allow nondeterministic_rounding 
+
+A compiler must not silently reassociate floating-point operations under semantic or bitwise determinism unless the active policy permits it.
+
+---
+
+# 27. Merge Visibility
+
+A merge can read:
+
+- Completed layer outputs
+- Explicit shared immutable state
+- Properly synchronized shared mutable state
+- Transactional results committed before merge execution
+
+A merge cannot observe partially completed layer output.
+
+---
+
+# 28. Core Language Boundary
+
+The Raygen core language contains features required for:
+
+- Parsing
+- Typing
+- Ownership
+- Memory
+- Control flow
+- Concurrency
+- Failure handling
+- Representation constraints
+
+Core features include:
+
+- Modules
+- Imports
+- Primitive and user-defined types
+- Records
+- Units
+- Choices
+- Arrays
+- Slices
+- Contiguous listings
+- Functions
+- Generics
+- Traits
+- Implementations
+- Blocks
+- Conditions
+- Loops
+- Selection
+- allow and deny
+- retain, store, dismiss, and free
+- Ownership and borrowing
+- Static and dynamic derive
+- deduce
+- map direct
+- Cases
+- Layers
+- Atomics
+- Regions
+- Direct memory access
+- Policies
+- Layout attributes
+
+---
+
+# 29. Standard Library Boundary
+
+The following capabilities are standard-library facilities:
+
+- JSON
+- Networking
+- Filesystems
+- Cryptography
+- Compression
+- Date and time
+- HTTP
+- Database clients
+- GPU APIs
+- Image processing
+- Audio
+- Machine learning
+- Serialization formats
+- Operating-system integration
+- Process management
+
+Example:
+
+rg1 use system.json use system.network use system.crypto 
+
+These facilities are not part of the core grammar.
+
+---
+
+# 30. Privileged Structural Libraries
+
+Tables, trees, graphs, and nests are privileged standard-library abstractions with optional syntax sugar.
+
+Core lowering examples:
+
+rg1 table Accounts {     id: AccountId key     balance: Money } 
+
+lowers conceptually into:
+
+rg1 type Accounts =     core.table.Table<AccountSchema> 
+
+A tree declaration:
+
+rg1 tree<FileNode> files 
+
+lowers into:
+
+rg1 core.tree.Tree<FileNode> 
+
+A compiler may optimize these structures through stable intrinsic traits.
+
+Their higher-level semantics belong to the standard-library specification, not the memory-model kernel.
+
+---
+
+# 31. Direct Mapping
+
+map ... direct declares a mapping relation.
+
+rg1 map opcode direct policy balanced {     0x01 -> load     0x02 -> store     0x03 -> add     other -> invalid_opcode } 
+
+The compiler may lower it into:
+
+- Comparisons
+- Jump tables
+- Decision trees
+- Hash dispatch
+- Perfect hashes
+- Tries
+- Computed branches
+- Profile-guided chains
+
+The selected strategy must preserve:
+
+- Mapping completeness
+- Source ordering where semantically relevant
+- Constant-time requirements
+- Denial behavior
+- Target validity
+
+Supported dispatch policies include:
+
+text compact balanced rapid constant_time profiled 
+
+A constant_time policy is semantic where timing observability is part of the security contract.
+
+---
+
+# 32. Formal Memory Model
+
+Raygen defines a cross-architecture memory model independent of x86, ARM, RISC-V, GPU, or VM implementation details.
+
+The memory model defines:
+
+- Locations
+- Reads
+- Writes
+- Atomicity
+- Data races
+- Visibility
+- Ordering
+- Synchronization
+- Happens-before
+- Compiler reordering
+- Processor reordering
+- Volatile behavior
+- Case boundaries
+- Layer boundaries
+
+---
+
+# 33. Memory Locations
+
+A memory location is a scalar object or the smallest independently addressable unit defined by a type’s layout.
+
+Distinct nonoverlapping fields are distinct memory locations unless the layout explicitly aliases them.
+
+Packed bitfields can share one memory location.
+
+---
+
+# 34. Data Races
+
+A data race exists when:
+
+1. Two operations access the same memory location concurrently.
+2. At least one access is a write.
+3. The accesses are not ordered by synchronization.
+4. The accesses are not valid atomic operations.
+
+Safe Raygen forbids data races.
+
+A statically provable race is a compile-time denial.
+
+A dynamically detected race is a runtime denial under checked execution.
+
+A safety-critical profile may convert dynamically detectable race risk into a compile-time denial.
+
+---
+
+# 35. Atomic Types
+
+Atomic values use:
+
+rg1 atomic<T> 
+
+Example:
+
+rg1 atomic<u32> counter = 0 
+
+T must be an atomic-capable type for the target or be supported by a conforming lock-based implementation.
+
+Atomic operations include:
+
+rg1 counter.load(order acquire) counter.store(1, order release) counter.add(1, order relaxed) counter.exchange(value, order acquire_release) counter.compare_exchange(expected, desired) 
+
+Supported memory orders:
+
+text relaxed acquire release acquire_release sequential 
+
+Raygen 1 does not define consume.
+
+---
+
+# 36. Default Atomic Ordering
+
+The default atomic order is:
+
+text sequential 
+
+Example:
+
+rg1 counter.add(1) 
+
+is equivalent to:
+
+rg1 counter.add(1, order sequential) 
+
+A weaker order must be explicit.
+
+rg1 counter.add(1, order relaxed) 
+
+---
+
+# 37. Atomic Order Legality
+
+Valid combinations include:
+
+- Load: relaxed, acquire, sequential
+- Store: relaxed, release, sequential
+- Read-modify-write: all supported orders
+- Failed compare-exchange: cannot use release or acquire_release
+
+Invalid order combinations are compile-time errors.
+
+---
+
+# 38. Happens-Before Relationships
+
+Raygen defines the following synchronization relationships:
+
+- A release operation synchronizes with an acquire operation that observes it.
+- Case completion happens before retrieval of that case’s outputs.
+- Case-group completion happens before the following statement.
+- Layer completion happens before execution of the next layer.
+- Lock release happens before a later successful acquisition of the same lock.
+- Channel send happens before the corresponding receive.
+- Ownership movement completes before the destination accesses the moved value.
+- Transaction commit happens before readers that observe the committed version.
+- Thread or task creation happens after initialization of values moved into it.
+- Task completion happens before a successful wait.
+
+---
+
+# 39. Layer Barriers
+
+Every completed layer creates a synchronization barrier.
+
+For sequential layers A and B:
+
+text all writes completed in A happen before all reads and writes begun in B 
+
+This rule applies regardless of whether the implementation uses:
+
+- Threads
+- Processes
+- Work stealing
+- GPU queues
+- Accelerator command buffers
+- Serial execution
+
+---
+
+# 40. Case Visibility
+
+A case output is not visible outside the case before successful completion.
+
+Ordinary partial results remain private.
+
+Transactional output may be prepared internally but becomes visible only at commit.
+
+A denied case discards unpublished ordinary outputs.
+
+---
+
+# 41. Compiler Reordering
+
+A compiler may reorder operations only when the reordering preserves:
+
+- Single-thread observable behavior
+- Happens-before relationships
+- Atomic semantics
+- Volatile access order
+- Denial behavior
+- Ownership transitions
+- Direct-memory requirements
+
+The compiler cannot move an ordinary write across a release boundary when doing so changes visibility.
+
+---
+
+# 42. Processor Reordering
+
+A Raygen implementation must emit fences, atomic instructions, runtime synchronization, or target-specific mechanisms sufficient to preserve Raygen’s memory-order guarantees.
+
+Target hardware behavior does not weaken language guarantees.
+
+---
+
+# 43. Volatile Access
+
+Volatile access is written as:
+
+rg1 read volatile device.status write volatile device.command <- value 
+
+Volatile means:
+
+- The access must occur.
+- The compiler must not remove it as dead.
+- The compiler must not merge distinct accesses improperly.
+- The access must target the declared memory location.
+- Relative ordering with other volatile accesses must follow the target and language rules.
+
+Volatile does not imply:
+
+- Atomicity
+- Thread safety
+- Acquire
+- Release
+- Sequential consistency
+- Mutual exclusion
+
+Atomic synchronization must be declared separately.
+
+---
+
+# 44. Locks
+
+Raygen provides lock capabilities through privileged core-library types.
+
+rg1 locked<SharedState> state 
+
+Lock acquisition creates an acquire boundary.
+
+Lock release creates a release boundary.
+
+Recursive locking, reader-writer behavior, fairness, and poisoning belong to the lock type’s specification.
+
+The language memory model defines only the synchronization guarantees.
+
+---
+
+# 45. Channels
+
+A successful channel send happens before the corresponding receive completes.
+
+Channel ordering can be:
+
+text fifo priority unordered 
+
+FIFO is the default.
+
+Unordered channels cannot be used under schedule determinism unless their merge behavior restores deterministic ordering.
+
+---
+
+# 46. Determinism Profiles
+
+Raygen distinguishes several forms of determinism.
+
+## 46.1 Build Determinism
+
+The same source, dependencies, compiler, target, and declared environment produce identical build artifacts.
+
+## 46.2 Semantic Determinism
+
+The same inputs produce the same language-level results.
+
+## 46.3 Schedule Determinism
+
+Concurrent execution produces the same result regardless of legal scheduling.
+
+## 46.4 Bitwise Numerical Determinism
+
+Numerical results are bit-for-bit identical across allowed executions and declared targets.
+
+These are separate guarantees.
+
+---
+
+# 47. Determinism Policy
+
+rg1 policy determinism semantic {     level semantic } 
+
+Supported levels:
+
+text none semantic schedule bitwise reproducible_build full 
+
+full requires:
+
+- Semantic determinism
+- Schedule determinism
+- Bitwise numerical determinism
+- Reproducible builds
+
+---
+
+# 48. Bitwise Determinism Restrictions
+
+Bitwise numerical determinism can restrict:
+
+- Fused multiply-add
+- Floating-point reassociation
+- Unordered reductions
+- Extended intermediate precision
+- Target-specific transcendental approximations
+- Nondeterministic GPU reductions
+- Fast-math transformations
+- Denormal handling
+- NaN payload transformation
+
+A compiler must issue a diagnostic when a requested optimization conflicts with bitwise determinism.
+
+---
+
+# 49. Schedule Determinism
+
+Schedule determinism requires:
+
+- Explicit output publication
+- Deterministic merge behavior
+- No unordered shared mutation
+- Stable channel ordering or deterministic reordering
+- Defined case-group completion semantics
+- Controlled random-number sources
+- Stable denial collection order
+
+A program using merge rapid with nondeterministic rounding does not satisfy schedule or bitwise determinism for that result.
+
+---
+
+# 50. Ownership and Lifetime Interaction
+
+Ownership validation occurs before concurrency optimization.
+
+A value can be:
+
+text owned borrowed read-only borrowed writable moved shared atomic shared locked stored retained dismissed freed 
+
+A moved value cannot be accessed through its previous binding.
+
+A freed value cannot be accessed.
+
+A writable borrow cannot coexist with another access that violates exclusivity.
+
+A case cannot capture a local borrow that expires before case completion.
+
+A detached case must own or retain every captured value.
+
+---
+
+# 51. Memory Directives
+
+Raygen memory directives remain:
+
+text retain store dismiss free 
+
+## 51.1 Retain
+
+Extends a value’s logical lifetime.
+
+## 51.2 Store
+
+Transfers or copies a value into a declared storage destination.
+
+## 51.3 Dismiss
+
+Ends active use without necessarily releasing physical memory immediately.
+
+## 51.4 Free
+
+Immediately releases owned storage.
+
+These directives are governed by ownership and region rules.
+
+---
+
+# 52. Regions
+
+A region groups allocations under one lifetime.
+
+rg1 region frame_memory {     capacity = 64:mb     alignment = 64     release = frame_end } 
+
+Values allocated in a region cannot escape beyond the region’s lifetime unless:
+
+- Moved into a longer-lived region
+- Copied into independent storage
+- Promoted through a valid retain operation
+
+Freeing a region invalidates all remaining region-owned values.
+
+---
+
+# 53. Layout Rules
+
+Layout directives constrain physical representation.
+
+rg1 unit Packet layout packed {     ... } 
+
+rg1 array<f32, 4, 4> matrix layout row_major 
+
+Layout directives cannot violate:
+
+- Type size
+- Required alignment
+- ABI contracts
+- Atomicity requirements
+- Ownership metadata requirements
+- Proven aliasing assumptions
+
+A preferred layout may be ignored when unsafe or unsupported.
+
+A required layout that cannot be satisfied produces a compile-time denial.
+
+---
+
+# 54. Vectorization Interaction
+
+Vectorization occurs after:
+
+- Type validation
+- Ownership validation
+- Access-contract validation
+- Layout resolution
+- Alias analysis
+- Deduction
+
+Vectorization may proceed only when:
+
+- Operations are lane-compatible
+- Dependencies permit it
+- Aliasing is safe
+- Alignment is legal
+- Tail behavior is defined
+- Active semantic policies are preserved
+
+Example:
+
+rg1 math loop vector<256> index in 0 ..< count tail scalar {     set output[index] <- input[index] * scale } 
+
+If required vectorization cannot be performed, compilation is denied.
+
+If vectorization is advisory, scalar fallback is permitted.
+
+---
+
+# 55. Runtime Guards
+
+Runtime guards are inserted when static proof is incomplete.
+
+Examples include:
+
+- Bounds checks
+- Dynamic cast checks
+- Runtime cycle detection
+- Dynamic alias checks
+- Plugin interface validation
+- Foreign-layout validation
+- Dynamic resource conflict checks
+
+A runtime guard must produce:
+
+- A typed denial
+- A trap under a declared trap policy
+- A recovery path explicitly defined by policy
+
+Runtime guards cannot fail silently.
+
+---
+
+# 56. Specification Documents
+
+The complete Raygen language is defined by the following documents:
+
+text Raygen Language Overview and Design Guide Raygen Normative Core Specification Raygen Formal Grammar Raygen Type System Raygen Ownership and Lifetime Model Raygen Memory Model Raygen Concurrency Specification Raygen VM Specification Raygen Assembly Serial Specification Raygen ABI Specification Raygen Standard Library Specification Raygen Package Format Raygen Compiler Conformance Suite Raygen Safety-Critical Profile 
+
+The Language Overview explains the language.
+
+The normative documents define implementation obligations.
+
+---
+
+# 57. Compiler Conformance Levels
+
+Raygen defines five conformance levels.
+
+## 57.1 Raygen Core
+
+Supports:
+
+- Parsing
+- Core types
+- Functions
+- Blocks
+- Control flow
+- Basic ownership
+- allow and deny
+- Basic memory directives
+- Assembly serial or VM output
+
+## 57.2 Raygen Native
+
+Adds:
+
+- Native-code generation
+- ABI conformance
+- Direct memory
+- Regions
+- Exact layout
+- Foreign functions
+- Atomic types
+
+## 57.3 Raygen Concurrent
+
+Adds:
+
+- Cases
+- Case groups
+- Layers
+- Channels
+- Locks
+- Memory ordering
+- Synchronization
+- Deterministic merges
+
+## 57.4 Raygen Professional
+
+Adds:
+
+- Generics
+- Traits
+- Deduction
+- Static and dynamic derivation
+- Optimization policies
+- Vectorization
+- Profile-guided dispatch
+- Full diagnostics
+- Standard package integration
+
+## 57.5 Raygen Safety-Critical
+
+Adds or requires:
+
+- Restricted language subset
+- No unchecked direct operations
+- Mandatory race denial
+- Bounded allocation
+- Bounded recursion
+- Deterministic scheduling
+- Complete denial handling
+- Certified build reproducibility
+- Conformance evidence
+- Auditable foreign interfaces
+
+---
+
+# 58. Conformance Test Areas
+
+A conforming implementation must pass tests for:
+
+- Lexical parsing
+- Syntactic parsing
+- Operator precedence
+- Name resolution
+- Type checking
+- Ownership
+- Borrowing
+- Moves
+- Lifetime rejection
+- Error propagation
+- Policy scope
+- Policy conflict resolution
+- Layout
+- Atomics
+- Memory ordering
+- Data-race detection
+- Case isolation
+- Case cancellation
+- Layer synchronization
+- Merge determinism
+- Static derivative cycles
+- Dynamic derivative cycle handling
+- Deduction fallback
+- Direct-map behavior
+- Overflow behavior
+- ABI layout
+- VM encoding
+- Assembly serial
+- Diagnostic consistency
+
+---
+
+# 59. Diagnostic Stability
+
+Raygen diagnostics use stable categories and codes.
+
+Examples:
+
+text RG-PARSE-001 RG-TYPE-004 RG-OWN-007 RG-MEM-012 RG-CASE-007 RG-LAYER-003 RG-DERIVE-001 RG-POLICY-012 RG-ATOMIC-005 RG-ABI-009 
+
+The exact wording may vary between compilers.
+
+The diagnostic category and semantic condition must remain consistent.
+
+Safety-critical profiles can require exact diagnostic records for certification.
+
+---
+
+# 60. Example: Policy and Vectorization Resolution
+
+rg1 policy safety safety {     deny data_race mandatory }  policy vectorization optimization {     require width 256 }  function scale(     input: read slice<f32>,     output: write slice<f32>,     factor: f32 ) -> allow<void> deny<AliasError> {     if overlaps(input, output)     {         return deny AliasError()     }      math loop vector<256> index in 0 ..< input.length     tail scalar     {         set output[index] <-             input[index] * factor     }      return allow } 
+
+Resolution order:
+
+1. The types are validated.
+2. Read/write ownership is validated.
+3. Alias behavior is analyzed.
+4. The runtime overlap guard is retained.
+5. The guarded nonoverlap path is vectorized.
+6. The overlap path returns a denial.
+7. No unsafe vector path is emitted.
+
+---
+
+# 61. Example: Deterministic Layered Reduction
+
+rg1 policy determinism semantic {     level schedule }  layers calculation {     layer partials     {         parallel         {             set part_a <- sum(values[0 ..< midpoint])         }          parallel         {             set part_b <- sum(values[midpoint ..< values.length])         }     }      merge ordered [part_a, part_b] into total } 
+
+The merge order is fixed.
+
+A compiler may schedule the two partial calculations in any order or concurrently, but it must combine them in the declared order.
+
+---
+
+# 62. Example: Dynamic Derivation
+
+rg1 derive dynamic interface_state     from plugin_dependencies policy {     consistency snapshot     cycle deny     update coalesced } {     interface_state =         evaluate_plugins(plugin_dependencies) } 
+
+The runtime must:
+
+1. Capture a stable dependency snapshot.
+2. Validate the graph.
+3. Deny cyclic dependency sets.
+4. Evaluate in topological order.
+5. Publish the completed state atomically.
+6. Discard partial unpublished state on denial.
+
+---
+
+# 63. Example: Atomics
+
+rg1 atomic<u64> completed_jobs = 0  case worker {     call perform_job()      completed_jobs.add     (         1,         order release     ) }  origin main {     spawn case worker     wait worker      let count =         completed_jobs.load         (             order acquire         )      emit count } 
+
+Case completion already establishes synchronization with wait.
+
+The explicit atomic ordering remains valid and useful when the counter is observed through other paths.
+
+---
+
+# 64. Example: Volatile Is Not Atomic
+
+rg1 direct {     let status_register =         cast<address<volatile u32>>(STATUS_ADDRESS)      let status =         read volatile status_register } 
+
+This guarantees the hardware read occurs.
+
+It does not make concurrent access thread-safe.
+
+For shared atomic state:
+
+rg1 atomic<u32> status 
+
+must be used instead.
+
+---
+
+# 65. Foundational Language Law
+
+Every conforming implementation follows these laws:
+
+1. Program meaning is defined before optimization.
+2. Safety rules cannot be weakened by code-generation preferences.
+3. Ownership determines who may access a value.
+4. Concurrency rules determine when writes become visible.
+5. Layout determines physical representation but cannot alter meaning.
+6. Deduction removes only checks backed by valid proofs.
+7. Unproven safety conditions require runtime guards.
+8. Required optimizations fail loudly when they cannot be satisfied.
+9. Dynamic workloads remain valid through explicit runtime mechanisms.
+10. Target hardware may change implementation, never semantics.
+
+---
+
+# 66. Definitive Normative Statement
+
+Raygen is a strongly typed, native-width, 256-bit-capable, execution-oriented programming language with explicit syntax, directive grammar, typed failure flow, visible memory intent, bounded deduction, structured derivation, case-based concurrency, ordered-layer parallelism, and a formal cross-platform memory model.
+
+Its semantic systems operate under a fixed precedence hierarchy.
+
+Its policies have defined classes, scopes, and conflict rules.
+
+Its grammar is formally specified.
+
+Its concurrency constructs define lifetime, visibility, cancellation, synchronization, and publication.
+
+Its atomic operations define cross-architecture ordering.
+
+Its deterministic guarantees are divided into build, semantic, scheduling, and bitwise numerical categories.
+
+Its standard library is separated from its language kernel.
+
+Its compiler implementations are governed by explicit conformance levels and test suites.
+
+Raygen’s final constitutional rule is:
+
+> Meaning comes first.  
+> Safety constrains execution.  
+> Ownership constrains access.  
+> Concurrency constrains visibility.  
+> Layout constrains representation.  
+> Deduction removes only proven checks.  
+> Optimization changes implementation, never meaning.
+
+And its execution principle remains:
+
+> Establish the origin.  
+> Define the direction.  
+> Prove the valid path.  
+> Guard the dynamic path.  
+> Generate the execution.
+>
+> ## *** ##
+
+
+
+## Normative Core Specification
+
+File extension: .rg1  
+Official name: Raygen  
+Meaning: Ray Generator  
+Edition: Raygen 1  
+Specification status: Normative Core
+
+A geometric ray begins at one fixed origin and extends in a defined direction. Raygen applies this principle to software execution:
+
+> Every operation begins from a known state, proceeds through an explicit direction, and produces a traceable result.
+
+The ray is Raygen’s semantic execution model. It does not require a physical ray object, linked allocation, pointer chain, or metadata header.
+
+The normative foundation of Raygen is:
+
+> Meaning comes first.  
+> Safety constrains execution.  
+> Ownership constrains access.  
+> Concurrency constrains visibility.  
+> Layout constrains representation.  
+> Deduction removes only proven checks.  
+> Optimization changes implementation, never meaning.
+
+This specification defines the rules every conforming Raygen compiler, interpreter, virtual machine, static analyzer, and runtime must follow.
+
+---
+
+# 1. Scope
+
+The Raygen Normative Core Specification defines:
+
+- Compilation-stage precedence
+- Policy classes and policy resolution
+- Lexical and syntactic grammar
+- Operator precedence
+- Type and ownership interactions
+- Static and dynamic derivation
+- Case-based concurrency
+- Ordered-layer parallelism
+- Atomic operations
+- Memory ordering
+- Synchronization
+- Determinism levels
+- Core-language boundaries
+- Standard-library boundaries
+- Compiler conformance requirements
+
+Descriptive documentation can explain how Raygen feels and why features exist.
+
+This document defines what Raygen programs mean.
+
+---
+
+# 2. Normative Terminology
+
+The words must, must not, required, shall, and shall not express mandatory implementation requirements.
+
+The words may, optional, and permitted describe implementation freedom.
+
+The word should describes a strongly recommended behavior that may be omitted only for a documented reason.
+
+A compiler that violates a mandatory requirement is not conformant with the relevant Raygen conformance level.
+
+---
+
+# 3. Semantic Authority
+
+Every Raygen program is governed by the following authority hierarchy, from strongest to weakest:
+
+text Language semantics     > type safety     > ownership and lifetime     > concurrency correctness     > explicit layout requirements     > explicit semantic policies     > explicit safety policies     > deduction results     > optimization requirements     > optimization preferences     > target heuristics 
+
+A lower-ranked system may not invalidate a higher-ranked system.
+
+Examples:
+
+- Vectorization cannot weaken ownership.
+- Layout selection cannot violate ABI requirements.
+- Deduction cannot remove a check whose proof is invalid after alias analysis.
+- A target heuristic cannot override required overflow behavior.
+- Parallelization cannot introduce a data race.
+- Inlining cannot alter observable denial propagation.
+- Dispatch optimization cannot change mapping completeness.
+
+---
+
+# 4. Compilation Precedence
+
+A conforming compiler processes a program according to the following semantic order:
+
+text 1. Parse lexical and syntactic structure 2. Resolve modules, imports, and names 3. Resolve declared types 4. Validate type legality 5. Validate ownership and lifetime 6. Validate control-flow legality 7. Validate failure-flow completeness 8. Validate concurrency access contracts 9. Apply mandatory layout constraints 10. Establish aliasing and provenance facts 11. Perform bounded deduction 12. Select required runtime guards 13. Apply vectorization and parallel optimization 14. Lower high-level directives 15. Generate assembly serial 16. Resolve symbolic tags and relocations 17. Emit verified VM code or native code 
+
+Implementations may internally combine stages, but the resulting behavior must be equivalent to this ordering.
+
+## 4.1 Safety Before Optimization
+
+Correctness is established before optimization.
+
+A compiler must never generate unsafe code merely because an optimization was requested.
+
+Example:
+
+rg1 policy vectorization {     mode forced } 
+
+rg1 function transform(     input: read slice<f32>,     output: write slice<f32> ) -> void {     ... } 
+
+If the compiler cannot establish safe aliasing conditions, it must do one of the following:
+
+- Generate a guarded vector path with a safe fallback
+- Generate a scalar implementation when the policy permits fallback
+- Deny compilation when vectorization is explicitly required
+
+It must not silently emit unsafe vector code.
+
+---
+
+# 5. Policy System
+
+Raygen policies are scoped semantic declarations.
+
+Every policy belongs to one of five classes:
+
+text semantic safety optimization diagnostic deployment 
+
+---
+
+# 6. Semantic Policies
+
+Semantic policies change observable program behavior.
+
+Examples include:
+
+- Overflow behavior
+- Floating-point rounding
+- Failure propagation
+- Memory ordering
+- Dispatch completeness
+- Numerical reproducibility
+- Denial recovery
+
+Example:
+
+rg1 policy arithmetic semantic {     allow overflow wrap } 
+
+The optimizer must preserve semantic policies exactly.
+
+It cannot replace wrapping addition with trapping addition, saturating addition, or mathematically unbounded addition.
+
+Supported arithmetic behaviors include:
+
+text deny wrap saturate clamp report widen 
+
+---
+
+# 7. Safety Policies
+
+Safety policies define operations that must be checked, rejected, or guarded.
+
+Examples include:
+
+- Bounds checking
+- Null access
+- Pointer provenance
+- Data-race prevention
+- Unchecked denial
+- Foreign calls
+- Unsafe deserialization
+- Lifetime violations
+
+Example:
+
+rg1 policy safety safety {     deny bounds_violation     deny data_race     deny unchecked_denial } 
+
+Safety policies override optimization policies.
+
+An optimization may remove a safety check only when a valid proof establishes that the check cannot fail.
+
+---
+
+# 8. Optimization Policies
+
+Optimization policies influence code generation without changing program meaning.
+
+Examples include:
+
+- Vectorization
+- Inlining
+- Loop unrolling
+- Dispatch strategy
+- Code-size preference
+- Layout preference
+- Task fusion
+- Register pressure
+- Cache placement
+
+Example:
+
+rg1 policy optimization optimization {     vectorization automatic     code_size balanced     inlining profiled } 
+
+Optimization policies are advisory unless marked require.
+
+rg1 policy vectorization optimization {     require width 256 } 
+
+If a required optimization cannot be performed without violating stronger rules, compilation is denied.
+
+Example diagnostic:
+
+text RG-OPT-021: Required 256-bit vectorization cannot be satisfied. Reason: loop-carried dependency on 'total'. 
+
+---
+
+# 9. Diagnostic Policies
+
+Diagnostic policies control compiler reporting.
+
+rg1 policy diagnostics diagnostic {     warning unused_binding     deny implicit_copy     note scalar_fallback } 
+
+Diagnostic policies cannot change program behavior.
+
+They may promote warnings to denials or suppress nonessential notices.
+
+They may not suppress mandatory safety errors.
+
+---
+
+# 10. Deployment Policies
+
+Deployment policies govern build and runtime environment restrictions.
+
+rg1 policy deployment deployment {     target x86_64     runtime minimal     foreign_calls audited     direct_blocks signed } 
+
+Deployment policies can restrict:
+
+- Targets
+- Runtime components
+- Dynamic loading
+- Foreign functions
+- Direct memory access
+- Code generation
+- Heap allocation
+- Package sources
+
+---
+
+# 11. Policy Scope and Resolution
+
+Policies apply in the following order, from nearest to farthest scope:
+
+text Expression Statement Block Function Type Module Package Build profile Language default 
+
+The nearest applicable policy wins unless a wider policy is marked mandatory.
+
+Example:
+
+rg1 policy arithmetic semantic {     deny overflow mandatory } 
+
+A nested policy cannot override it:
+
+rg1 policy arithmetic semantic {     allow overflow wrap } 
+
+Compiler diagnostic:
+
+text RG-POLICY-012: Local overflow policy conflicts with mandatory module policy. 
+
+## 11.1 Policy Conflicts
+
+If two policies at the same scope conflict:
+
+- A mandatory policy wins over a nonmandatory policy.
+- A safety policy wins over an optimization policy.
+- A semantic policy cannot be replaced by an optimization policy.
+- Two conflicting mandatory policies produce a compile-time denial.
+- Two incompatible semantic policies produce a compile-time denial.
+
+---
+
+# 12. Lexical Grammar
+
+Raygen source files use Unicode text encoded as UTF-8.
+
+A conforming compiler must reject malformed UTF-8.
+
+## 12.1 Identifiers
+
+Identifiers begin with:
+
+- A Unicode letter
+- An underscore
+
+Subsequent characters may include:
+
+- Unicode letters
+- Decimal digits
+- Underscores
+
+Examples:
+
+rg1 value _total customer_id Δposition 
+
+Keywords are reserved and cannot be used as ordinary identifiers unless escaped by a future edition-defined mechanism.
+
+---
+
+## 12.2 Keywords
+
+Core reserved words include:
+
+text raygen module use as public private function origin record unit choice type alias trait implement let var late set return if else while repeat each in select case other allow deny retain store dismiss free derive dynamic deduce requires ensures policy mandatory map direct layers layer parallel merge spawn wait move copy read write own atomic locked volatile region scope defer where when compile generate true false void never 
+
+---
+
+## 12.3 Numeric Literals
+
+Decimal integer:
+
+rg1 42 1_000_000 
+
+Hexadecimal integer:
+
+rg1 0xFF 0xFF00_1000 
+
+Binary integer:
+
+rg1 0b1010_0101 
+
+Floating-point:
+
+rg1 3.14159 1.0e-9 
+
+Typed suffix:
+
+rg1 42:u8 4096:usize 3.14:f32 
+
+Underscores may separate digits but cannot appear at the beginning or end of a literal or immediately beside a radix marker or decimal point.
+
+---
+
+## 12.4 Strings
+
+Standard string:
+
+rg1 "Hello, world!" 
+
+Escape sequences include:
+
+text \n \r \t \\ \" \0 \u{...} 
+
+Multiline string:
+
+rg1 """ Line one Line two """ 
+
+Multiline strings preserve embedded newlines.
+
+Indent normalization is defined by the standard formatter and must not alter semantic content.
+
+---
+
+## 12.5 Comments
+
+Single-line comment:
+
+rg1 # Comment 
+
+Block comment:
+
+rg1 #[     Block comment ]# 
+
+Documentation comment:
+
+rg1 ## Public documentation 
+
+Block comments may nest only if the implementation supports nested comment counting exactly as defined by the language edition.
+
+Raygen 1 permits nested block comments.
+
+---
+
+## 12.6 Terminators
+
+A statement terminates with:
+
+- A newline
+- A semicolon
+- The closing brace of a block when the preceding construct is complete
+
+Semicolon insertion must not occur inside:
+
+- Parentheses
+- Brackets
+- Generic-argument lists
+- Incomplete expressions
+- Pipeline continuations
+
+Example:
+
+rg1 let result =     values     |> where row.active     |> order row.name ascending 
+
+This is one statement.
+
+---
+
+# 13. Syntactic Grammar
+
+The following EBNF defines the foundational Raygen grammar.
+
+ebnf program     = version-declaration,       { module-item },       EOF ;  version-declaration     = "raygen",       integer-literal,       terminator ;  module-item     = module-declaration     | use-declaration     | declaration     | origin-declaration     | policy-declaration ;  module-declaration     = "module",       qualified-name,       terminator ;  use-declaration     = "use",       qualified-name,       [ import-selection | alias-clause ],       terminator ;  import-selection     = "{",       identifier,       { ",", identifier },       "}" ;  alias-clause     = "as",       identifier ;  declaration     = function-declaration     | record-declaration     | unit-declaration     | choice-declaration     | type-declaration     | alias-declaration     | trait-declaration     | implementation-declaration     | constant-declaration ;  origin-declaration     = "origin",       identifier,       block ;  function-declaration     = [ visibility ],       "function",       identifier,       [ generic-parameters ],       parameter-list,       [ return-contract ],       { function-contract },       function-body ;  visibility     = "public"     | "private" ;  parameter-list     = "(",       [ parameter,       { ",", parameter } ],       ")" ;  parameter     = [ access-mode ],       identifier,       ":",       type-expression,       [ "=", expression ] ;  access-mode     = "own"     | "read"     | "write"     | "move"     | "atomic"     | "locked" ;  return-contract     = "->",       return-type ;  return-type     = type-expression     | allowed-type, denied-type     | "void"     | "never" ;  allowed-type     = "allow",       "<",       type-expression,       ">" ;  denied-type     = "deny",       "<",       type-expression,       ">" ;  function-contract     = requires-clause     | ensures-clause ;  requires-clause     = "requires",       expression ;  ensures-clause     = "ensures",       expression ;  function-body     = block     | "=>",       expression,       terminator ;  block     = "{",       { statement },       "}" ;  statement     = binding-statement     | mutation-statement     | expression-statement     | return-statement     | if-statement     | while-statement     | repeat-statement     | each-statement     | select-statement     | allow-statement     | deny-statement     | derive-statement     | deduce-statement     | case-declaration     | cases-statement     | layers-statement     | memory-statement     | policy-declaration     | direct-statement     | block ;  binding-statement     = ( "let" | "var" | "late" ),       identifier,       [ ":",       type-expression ],       [ "=",       expression ],       terminator ;  mutation-statement     = "set",       assignable-expression,       "<-",       expression,       terminator ;  return-statement     = "return",       [ "allow" | "deny" ],       [ expression ],       terminator ;  expression-statement     = expression,       terminator ;  terminator     = newline     | ";" ; 
+
+The complete grammar is divided into:
+
+text Raygen Lexical Grammar Raygen Syntactic Grammar Raygen Expression Grammar Raygen Structural-Sugar Grammar 
+
+Privileged standard-library syntax is specified separately from the language kernel.
+
+---
+
+# 14. Operator Precedence
+
+Raygen expressions use the following precedence, from highest to lowest:
+
+| Level | Operations |
+|---:|---|
+| 1 | Member access, indexing, function calls |
+| 2 | Explicit casts, checked casts, views |
+| 3 | Unary operators |
+| 4 | Multiplication, division, remainder |
+| 5 | Addition, subtraction |
+| 6 | Shifts |
+| 7 | Bitwise AND |
+| 8 | Bitwise XOR |
+| 9 | Bitwise OR |
+| 10 | Relational comparisons |
+| 11 | Equality |
+| 12 | Logical AND |
+| 13 | Logical OR |
+| 14 | Ranges |
+| 15 | Pipelines |
+| 16 | Conditional expressions |
+| 17 | Assignment-like directives |
+
+Example:
+
+rg1 a + b * c 
+
+means:
+
+rg1 a + (b * c) 
+
+Example:
+
+rg1 value & mask == expected 
+
+means:
+
+rg1 (value & mask) == expected 
+
+---
+
+# 15. Pipeline Semantics
+
+The pipeline operator is:
+
+text |> 
+
+It has weak binding.
+
+rg1 let active_users =     users     |> where row.active     |> order row.name ascending 
+
+This is parsed as an ordered transformation sequence applied to users.
+
+A pipeline stage receives the previous stage’s result as its input.
+
+Pipeline syntax may lower into:
+
+- Function calls
+- Iterator adapters
+- Compiler-recognized collection operations
+- Privileged library interfaces
+
+Pipeline syntax does not imply eager or lazy evaluation by itself. The called operation or structural type determines evaluation behavior.
+
+---
+
+# 16. Static Derivation
+
+Static derivation declares a compile-time-known dependency graph.
+
+rg1 derive total from subtotal, tax pure {     total = subtotal + tax } 
+
+## 16.1 Static Derivation Rules
+
+1. Every external dependency read by the block must appear after from.
+2. Every derived output must be assigned exactly once.
+3. Derived outputs are immutable outside the block unless declared mutable.
+4. The static dependency graph must be acyclic.
+5. Dependency identity is lexical, typed, and module-resolved.
+6. A derived value is invalidated when one of its declared dependencies changes.
+7. Undeclared external reads are compile-time errors.
+8. Derivation is pure by default.
+9. A pure derivation cannot perform I/O, mutation of external state, synchronization, allocation with visible lifetime effects, or foreign calls.
+10. The compiler may cache a derived value when doing so preserves semantics.
+
+Example cycle:
+
+rg1 derive a from b {     a = b + 1 }  derive b from a {     b = a + 1 } 
+
+Compiler diagnostic:
+
+text RG-DERIVE-001: Static derivative cycle detected: a -> b -> a. 
+
+---
+
+# 17. Effectful Derivation
+
+A derivation with side effects must be marked effectful.
+
+rg1 derive audit_record     from transaction     effectful {     audit_record =         write_audit_entry(transaction) } 
+
+Effectful derivations must declare their effect capabilities.
+
+rg1 derive audit_record     from transaction     effectful     uses storage.write {     ... } 
+
+An effectful derivation is not freely reorderable or cacheable.
+
+The compiler may optimize it only when the effect system proves equivalence.
+
+---
+
+# 18. Dynamic Derivation
+
+Dynamic derivation supports runtime-changing dependency sets.
+
+rg1 derive dynamic state from dependencies policy {     consistency snapshot     cycle deny     update coalesced } {     state = evaluate(dependencies) } 
+
+## 18.1 Dynamic Derivation Rules
+
+1. Runtime dependencies may be inserted, removed, or replaced.
+2. Runtime cycle detection is mandatory.
+3. Every dependency-set version has a stable version identifier.
+4. Re-evaluation uses topological order where the runtime graph permits it.
+5. A failed re-evaluation produces a denial.
+6. Concurrent dependency changes obey the declared consistency policy.
+7. Partially evaluated results are not published unless the policy explicitly permits partial publication.
+8. Dynamic derivation has observable runtime cost.
+9. Dynamic dependency metadata is subject to ownership and lifetime rules.
+10. Runtime graph corruption produces a denial or trap according to the active safety profile.
+
+Supported consistency policies include:
+
+text snapshot serial transactional latest eventual 
+
+Supported update policies include:
+
+text immediate coalesced batched manual 
+
+Supported cycle policies include:
+
+text deny report isolate 
+
+---
+
+# 19. Deductive Reasoning
+
+Deduction establishes compile-time facts.
+
+rg1 deduce safe_index {     require index < values.length } 
+
+Deduction may prove:
+
+- Bounds
+- Initialization
+- Non-null state
+- Numeric ranges
+- Capacity
+- Ownership
+- Lifetime
+- Alignment
+- Pointer provenance
+- Case independence
+- Layer independence
+- Derivative acyclicity
+- Table-key uniqueness
+- Protocol-state legality
+
+## 19.1 Deduction Outcomes
+
+Every deduction produces one of three outcomes:
+
+text proven unproven disproven 
+
+### Proven
+
+The compiler may remove the corresponding runtime check.
+
+### Unproven
+
+The compiler retains or inserts a runtime guard.
+
+### Disproven
+
+Compilation is denied when the disproven fact is required for correctness.
+
+---
+
+## 19.2 Deduction Validity
+
+A proof is valid only if it remains correct after:
+
+- Layout resolution
+- Alias analysis
+- Ownership resolution
+- Target lowering
+- Concurrency analysis
+- Integer-width selection
+- Foreign-interface validation
+
+A compiler must invalidate a deduction if a later required analysis disproves one of its assumptions.
+
+---
+
+## 19.3 Deduction Budgets
+
+Deduction must be bounded.
+
+rg1 policy deduction optimization {     budget standard     fallback runtime_check } 
+
+Supported budgets include:
+
+text minimal standard extended unbounded_forbidden 
+
+Raygen 1 forbids truly unbounded compile-time deduction in conforming builds.
+
+---
+
+# 20. Case-Based Concurrency
+
+A case is a structured concurrent task.
+
+Every case has:
+
+- Lexical lifetime
+- Declared inputs
+- Declared outputs
+- Declared access capabilities
+- Completion state
+- Denial state
+- Cancellation behavior
+
+Example:
+
+rg1 case load_users {     use read database     output users      set users <- database.read_users() } 
+
+---
+
+# 21. Case Access Contracts
+
+Supported access contracts are:
+
+text read write move atomic locked exclusive snapshot transactional 
+
+## 21.1 Read
+
+Multiple read accesses may coexist.
+
+A read case cannot mutate the referenced resource through that access path.
+
+## 21.2 Write
+
+write access is exclusive unless synchronization is explicitly declared.
+
+## 21.3 Move
+
+move transfers ownership into the case.
+
+The source binding becomes unavailable after successful transfer.
+
+## 21.4 Atomic
+
+atomic access permits operations supported by the atomic type.
+
+## 21.5 Locked
+
+locked access requires an associated lock capability.
+
+## 21.6 Exclusive
+
+exclusive grants sole access to the resource for the case lifetime.
+
+## 21.7 Snapshot
+
+snapshot provides an immutable versioned view.
+
+## 21.8 Transactional
+
+transactional provides isolated mutation committed according to transaction policy.
+
+---
+
+# 22. Case Rules
+
+1. A case cannot access external mutable state without a declared access contract.
+2. Read access may coexist with other reads.
+3. Write access is exclusive unless atomic, locked, or transactional.
+4. Move access transfers ownership.
+5. Ordinary outputs become visible only after successful completion.
+6. A denied case publishes no partial ordinary outputs.
+7. A case cannot outlive its enclosing group unless declared detached.
+8. Cancellation propagates through the enclosing case group.
+9. Statistically detectable access conflicts must be rejected.
+10. Dynamic resource conflicts must be synchronized or denied at runtime.
+11. Completion establishes a happens-before relationship with output retrieval.
+12. Case-local storage is released according to its ownership policy.
+
+---
+
+# 23. Case Groups
+
+A case group defines completion and failure behavior.
+
+rg1 cases processing policy {     completion all     failure cancel_remaining } {     case load_users     {         ...     }      case load_orders     {         ...     } } 
+
+Supported completion policies:
+
+text all any first_allowed first_completed quorum 
+
+Supported failure policies:
+
+text continue cancel_remaining deny_group collect_denials retry 
+
+A quorum policy must declare the required count.
+
+rg1 completion quorum 3 
+
+---
+
+# 24. Detached Cases
+
+A detached case may outlive its lexical creator.
+
+rg1 case telemetry detached {     ... } 
+
+Detached cases require:
+
+- Explicit lifetime ownership
+- Explicit cancellation authority
+- Explicit output destination
+- Deployment permission
+
+Safety-critical profiles may prohibit detached cases.
+
+---
+
+# 25. Ordered-Layer Parallelism
+
+A layer is an ordered synchronization phase.
+
+rg1 layers frame {     layer update     {         parallel physics.update()         parallel animation.update()     }      layer render     {         parallel graphics.render()     }      merge     {         present()     } } 
+
+## 25.1 Layer Rules
+
+1. Layer N + 1 begins only after layer N completes.
+2. Operations within one layer may execute concurrently.
+3. A parallel operation may execute serially if necessary.
+4. Legal serial execution must preserve observable semantics.
+5. Shared mutation requires access contracts.
+6. Outputs become visible at the layer boundary.
+7. Merge executes after all required layers complete.
+8. Denial behavior is governed by the layer-group failure policy.
+9. Parallel reductions require ordering or associativity.
+10. Nondeterministic behavior must be explicit.
+11. Layer completion establishes a synchronization barrier.
+12. Layer implementation may use threads, workers, processes, GPU queues, or serial execution.
+
+---
+
+# 26. Parallel Reductions
+
+Integer addition can be declared associative only when overflow behavior preserves associativity under the selected type and policy.
+
+rg1 merge sum partials into total requires associative(add) 
+
+Floating-point addition is not assumed associative.
+
+Deterministic floating-point merge:
+
+rg1 merge ordered partials into total 
+
+Maximum-throughput merge:
+
+rg1 merge rapid partials into total allow nondeterministic_rounding 
+
+A compiler must not silently reassociate floating-point operations under semantic or bitwise determinism unless the active policy permits it.
+
+---
+
+# 27. Merge Visibility
+
+A merge can read:
+
+- Completed layer outputs
+- Explicit shared immutable state
+- Properly synchronized shared mutable state
+- Transactional results committed before merge execution
+
+A merge cannot observe partially completed layer output.
+
+---
+
+# 28. Core Language Boundary
+
+The Raygen core language contains features required for:
+
+- Parsing
+- Typing
+- Ownership
+- Memory
+- Control flow
+- Concurrency
+- Failure handling
+- Representation constraints
+
+Core features include:
+
+- Modules
+- Imports
+- Primitive and user-defined types
+- Records
+- Units
+- Choices
+- Arrays
+- Slices
+- Contiguous listings
+- Functions
+- Generics
+- Traits
+- Implementations
+- Blocks
+- Conditions
+- Loops
+- Selection
+- allow and deny
+- retain, store, dismiss, and free
+- Ownership and borrowing
+- Static and dynamic derive
+- deduce
+- map direct
+- Cases
+- Layers
+- Atomics
+- Regions
+- Direct memory access
+- Policies
+- Layout attributes
+
+---
+
+# 29. Standard Library Boundary
+
+The following capabilities are standard-library facilities:
+
+- JSON
+- Networking
+- Filesystems
+- Cryptography
+- Compression
+- Date and time
+- HTTP
+- Database clients
+- GPU APIs
+- Image processing
+- Audio
+- Machine learning
+- Serialization formats
+- Operating-system integration
+- Process management
+
+Example:
+
+rg1 use system.json use system.network use system.crypto 
+
+These facilities are not part of the core grammar.
+
+---
+
+# 30. Privileged Structural Libraries
+
+Tables, trees, graphs, and nests are privileged standard-library abstractions with optional syntax sugar.
+
+Core lowering examples:
+
+rg1 table Accounts {     id: AccountId key     balance: Money } 
+
+lowers conceptually into:
+
+rg1 type Accounts =     core.table.Table<AccountSchema> 
+
+A tree declaration:
+
+rg1 tree<FileNode> files 
+
+lowers into:
+
+rg1 core.tree.Tree<FileNode> 
+
+A compiler may optimize these structures through stable intrinsic traits.
+
+Their higher-level semantics belong to the standard-library specification, not the memory-model kernel.
+
+---
+
+# 31. Direct Mapping
+
+map ... direct declares a mapping relation.
+
+rg1 map opcode direct policy balanced {     0x01 -> load     0x02 -> store     0x03 -> add     other -> invalid_opcode } 
+
+The compiler may lower it into:
+
+- Comparisons
+- Jump tables
+- Decision trees
+- Hash dispatch
+- Perfect hashes
+- Tries
+- Computed branches
+- Profile-guided chains
+
+The selected strategy must preserve:
+
+- Mapping completeness
+- Source ordering where semantically relevant
+- Constant-time requirements
+- Denial behavior
+- Target validity
+
+Supported dispatch policies include:
+
+text compact balanced rapid constant_time profiled 
+
+A constant_time policy is semantic where timing observability is part of the security contract.
+
+---
+
+# 32. Formal Memory Model
+
+Raygen defines a cross-architecture memory model independent of x86, ARM, RISC-V, GPU, or VM implementation details.
+
+The memory model defines:
+
+- Locations
+- Reads
+- Writes
+- Atomicity
+- Data races
+- Visibility
+- Ordering
+- Synchronization
+- Happens-before
+- Compiler reordering
+- Processor reordering
+- Volatile behavior
+- Case boundaries
+- Layer boundaries
+
+---
+
+# 33. Memory Locations
+
+A memory location is a scalar object or the smallest independently addressable unit defined by a type’s layout.
+
+Distinct nonoverlapping fields are distinct memory locations unless the layout explicitly aliases them.
+
+Packed bitfields can share one memory location.
+
+---
+
+# 34. Data Races
+
+A data race exists when:
+
+1. Two operations access the same memory location concurrently.
+2. At least one access is a write.
+3. The accesses are not ordered by synchronization.
+4. The accesses are not valid atomic operations.
+
+Safe Raygen forbids data races.
+
+A statically provable race is a compile-time denial.
+
+A dynamically detected race is a runtime denial under checked execution.
+
+A safety-critical profile may convert dynamically detectable race risk into a compile-time denial.
+
+---
+
+# 35. Atomic Types
+
+Atomic values use:
+
+rg1 atomic<T> 
+
+Example:
+
+rg1 atomic<u32> counter = 0 
+
+T must be an atomic-capable type for the target or be supported by a conforming lock-based implementation.
+
+Atomic operations include:
+
+rg1 counter.load(order acquire) counter.store(1, order release) counter.add(1, order relaxed) counter.exchange(value, order acquire_release) counter.compare_exchange(expected, desired) 
+
+Supported memory orders:
+
+text relaxed acquire release acquire_release sequential 
+
+Raygen 1 does not define consume.
+
+---
+
+# 36. Default Atomic Ordering
+
+The default atomic order is:
+
+text sequential 
+
+Example:
+
+rg1 counter.add(1) 
+
+is equivalent to:
+
+rg1 counter.add(1, order sequential) 
+
+A weaker order must be explicit.
+
+rg1 counter.add(1, order relaxed) 
+
+---
+
+# 37. Atomic Order Legality
+
+Valid combinations include:
+
+- Load: relaxed, acquire, sequential
+- Store: relaxed, release, sequential
+- Read-modify-write: all supported orders
+- Failed compare-exchange: cannot use release or acquire_release
+
+Invalid order combinations are compile-time errors.
+
+---
+
+# 38. Happens-Before Relationships
+
+Raygen defines the following synchronization relationships:
+
+- A release operation synchronizes with an acquire operation that observes it.
+- Case completion happens before retrieval of that case’s outputs.
+- Case-group completion happens before the following statement.
+- Layer completion happens before execution of the next layer.
+- Lock release happens before a later successful acquisition of the same lock.
+- Channel send happens before the corresponding receive.
+- Ownership movement completes before the destination accesses the moved value.
+- Transaction commit happens before readers that observe the committed version.
+- Thread or task creation happens after initialization of values moved into it.
+- Task completion happens before a successful wait.
+
+---
+
+# 39. Layer Barriers
+
+Every completed layer creates a synchronization barrier.
+
+For sequential layers A and B:
+
+text all writes completed in A happen before all reads and writes begun in B 
+
+This rule applies regardless of whether the implementation uses:
+
+- Threads
+- Processes
+- Work stealing
+- GPU queues
+- Accelerator command buffers
+- Serial execution
+
+---
+
+# 40. Case Visibility
+
+A case output is not visible outside the case before successful completion.
+
+Ordinary partial results remain private.
+
+Transactional output may be prepared internally but becomes visible only at commit.
+
+A denied case discards unpublished ordinary outputs.
+
+---
+
+# 41. Compiler Reordering
+
+A compiler may reorder operations only when the reordering preserves:
+
+- Single-thread observable behavior
+- Happens-before relationships
+- Atomic semantics
+- Volatile access order
+- Denial behavior
+- Ownership transitions
+- Direct-memory requirements
+
+The compiler cannot move an ordinary write across a release boundary when doing so changes visibility.
+
+---
+
+# 42. Processor Reordering
+
+A Raygen implementation must emit fences, atomic instructions, runtime synchronization, or target-specific mechanisms sufficient to preserve Raygen’s memory-order guarantees.
+
+Target hardware behavior does not weaken language guarantees.
+
+---
+
+# 43. Volatile Access
+
+Volatile access is written as:
+
+rg1 read volatile device.status write volatile device.command <- value 
+
+Volatile means:
+
+- The access must occur.
+- The compiler must not remove it as dead.
+- The compiler must not merge distinct accesses improperly.
+- The access must target the declared memory location.
+- Relative ordering with other volatile accesses must follow the target and language rules.
+
+Volatile does not imply:
+
+- Atomicity
+- Thread safety
+- Acquire
+- Release
+- Sequential consistency
+- Mutual exclusion
+
+Atomic synchronization must be declared separately.
+
+---
+
+# 44. Locks
+
+Raygen provides lock capabilities through privileged core-library types.
+
+rg1 locked<SharedState> state 
+
+Lock acquisition creates an acquire boundary.
+
+Lock release creates a release boundary.
+
+Recursive locking, reader-writer behavior, fairness, and poisoning belong to the lock type’s specification.
+
+The language memory model defines only the synchronization guarantees.
+
+---
+
+# 45. Channels
+
+A successful channel send happens before the corresponding receive completes.
+
+Channel ordering can be:
+
+text fifo priority unordered 
+
+FIFO is the default.
+
+Unordered channels cannot be used under schedule determinism unless their merge behavior restores deterministic ordering.
+
+---
+
+# 46. Determinism Profiles
+
+Raygen distinguishes several forms of determinism.
+
+## 46.1 Build Determinism
+
+The same source, dependencies, compiler, target, and declared environment produce identical build artifacts.
+
+## 46.2 Semantic Determinism
+
+The same inputs produce the same language-level results.
+
+## 46.3 Schedule Determinism
+
+Concurrent execution produces the same result regardless of legal scheduling.
+
+## 46.4 Bitwise Numerical Determinism
+
+Numerical results are bit-for-bit identical across allowed executions and declared targets.
+
+These are separate guarantees.
+
+---
+
+# 47. Determinism Policy
+
+rg1 policy determinism semantic {     level semantic } 
+
+Supported levels:
+
+text none semantic schedule bitwise reproducible_build full 
+
+full requires:
+
+- Semantic determinism
+- Schedule determinism
+- Bitwise numerical determinism
+- Reproducible builds
+
+---
+
+# 48. Bitwise Determinism Restrictions
+
+Bitwise numerical determinism can restrict:
+
+- Fused multiply-add
+- Floating-point reassociation
+- Unordered reductions
+- Extended intermediate precision
+- Target-specific transcendental approximations
+- Nondeterministic GPU reductions
+- Fast-math transformations
+- Denormal handling
+- NaN payload transformation
+
+A compiler must issue a diagnostic when a requested optimization conflicts with bitwise determinism.
+
+---
+
+# 49. Schedule Determinism
+
+Schedule determinism requires:
+
+- Explicit output publication
+- Deterministic merge behavior
+- No unordered shared mutation
+- Stable channel ordering or deterministic reordering
+- Defined case-group completion semantics
+- Controlled random-number sources
+- Stable denial collection order
+
+A program using merge rapid with nondeterministic rounding does not satisfy schedule or bitwise determinism for that result.
+
+---
+
+# 50. Ownership and Lifetime Interaction
+
+Ownership validation occurs before concurrency optimization.
+
+A value can be:
+
+text owned borrowed read-only borrowed writable moved shared atomic shared locked stored retained dismissed freed 
+
+A moved value cannot be accessed through its previous binding.
+
+A freed value cannot be accessed.
+
+A writable borrow cannot coexist with another access that violates exclusivity.
+
+A case cannot capture a local borrow that expires before case completion.
+
+A detached case must own or retain every captured value.
+
+---
+
+# 51. Memory Directives
+
+Raygen memory directives remain:
+
+text retain store dismiss free 
+
+## 51.1 Retain
+
+Extends a value’s logical lifetime.
+
+## 51.2 Store
+
+Transfers or copies a value into a declared storage destination.
+
+## 51.3 Dismiss
+
+Ends active use without necessarily releasing physical memory immediately.
+
+## 51.4 Free
+
+Immediately releases owned storage.
+
+These directives are governed by ownership and region rules.
+
+---
+
+# 52. Regions
+
+A region groups allocations under one lifetime.
+
+rg1 region frame_memory {     capacity = 64:mb     alignment = 64     release = frame_end } 
+
+Values allocated in a region cannot escape beyond the region’s lifetime unless:
+
+- Moved into a longer-lived region
+- Copied into independent storage
+- Promoted through a valid retain operation
+
+Freeing a region invalidates all remaining region-owned values.
+
+---
+
+# 53. Layout Rules
+
+Layout directives constrain physical representation.
+
+rg1 unit Packet layout packed {     ... } 
+
+rg1 array<f32, 4, 4> matrix layout row_major 
+
+Layout directives cannot violate:
+
+- Type size
+- Required alignment
+- ABI contracts
+- Atomicity requirements
+- Ownership metadata requirements
+- Proven aliasing assumptions
+
+A preferred layout may be ignored when unsafe or unsupported.
+
+A required layout that cannot be satisfied produces a compile-time denial.
+
+---
+
+# 54. Vectorization Interaction
+
+Vectorization occurs after:
+
+- Type validation
+- Ownership validation
+- Access-contract validation
+- Layout resolution
+- Alias analysis
+- Deduction
+
+Vectorization may proceed only when:
+
+- Operations are lane-compatible
+- Dependencies permit it
+- Aliasing is safe
+- Alignment is legal
+- Tail behavior is defined
+- Active semantic policies are preserved
+
+Example:
+
+rg1 math loop vector<256> index in 0 ..< count tail scalar {     set output[index] <- input[index] * scale } 
+
+If required vectorization cannot be performed, compilation is denied.
+
+If vectorization is advisory, scalar fallback is permitted.
+
+---
+
+# 55. Runtime Guards
+
+Runtime guards are inserted when static proof is incomplete.
+
+Examples include:
+
+- Bounds checks
+- Dynamic cast checks
+- Runtime cycle detection
+- Dynamic alias checks
+- Plugin interface validation
+- Foreign-layout validation
+- Dynamic resource conflict checks
+
+A runtime guard must produce:
+
+- A typed denial
+- A trap under a declared trap policy
+- A recovery path explicitly defined by policy
+
+Runtime guards cannot fail silently.
+
+---
+
+# 56. Specification Documents
+
+The complete Raygen language is defined by the following documents:
+
+text Raygen Language Overview and Design Guide Raygen Normative Core Specification Raygen Formal Grammar Raygen Type System Raygen Ownership and Lifetime Model Raygen Memory Model Raygen Concurrency Specification Raygen VM Specification Raygen Assembly Serial Specification Raygen ABI Specification Raygen Standard Library Specification Raygen Package Format Raygen Compiler Conformance Suite Raygen Safety-Critical Profile 
+
+The Language Overview explains the language.
+
+The normative documents define implementation obligations.
+
+---
+
+# 57. Compiler Conformance Levels
+
+Raygen defines five conformance levels.
+
+## 57.1 Raygen Core
+
+Supports:
+
+- Parsing
+- Core types
+- Functions
+- Blocks
+- Control flow
+- Basic ownership
+- allow and deny
+- Basic memory directives
+- Assembly serial or VM output
+
+## 57.2 Raygen Native
+
+Adds:
+
+- Native-code generation
+- ABI conformance
+- Direct memory
+- Regions
+- Exact layout
+- Foreign functions
+- Atomic types
+
+## 57.3 Raygen Concurrent
+
+Adds:
+
+- Cases
+- Case groups
+- Layers
+- Channels
+- Locks
+- Memory ordering
+- Synchronization
+- Deterministic merges
+
+## 57.4 Raygen Professional
+
+Adds:
+
+- Generics
+- Traits
+- Deduction
+- Static and dynamic derivation
+- Optimization policies
+- Vectorization
+- Profile-guided dispatch
+- Full diagnostics
+- Standard package integration
+
+## 57.5 Raygen Safety-Critical
+
+Adds or requires:
+
+- Restricted language subset
+- No unchecked direct operations
+- Mandatory race denial
+- Bounded allocation
+- Bounded recursion
+- Deterministic scheduling
+- Complete denial handling
+- Certified build reproducibility
+- Conformance evidence
+- Auditable foreign interfaces
+
+---
+
+# 58. Conformance Test Areas
+
+A conforming implementation must pass tests for:
+
+- Lexical parsing
+- Syntactic parsing
+- Operator precedence
+- Name resolution
+- Type checking
+- Ownership
+- Borrowing
+- Moves
+- Lifetime rejection
+- Error propagation
+- Policy scope
+- Policy conflict resolution
+- Layout
+- Atomics
+- Memory ordering
+- Data-race detection
+- Case isolation
+- Case cancellation
+- Layer synchronization
+- Merge determinism
+- Static derivative cycles
+- Dynamic derivative cycle handling
+- Deduction fallback
+- Direct-map behavior
+- Overflow behavior
+- ABI layout
+- VM encoding
+- Assembly serial
+- Diagnostic consistency
+
+---
+
+# 59. Diagnostic Stability
+
+Raygen diagnostics use stable categories and codes.
+
+Examples:
+
+text RG-PARSE-001 RG-TYPE-004 RG-OWN-007 RG-MEM-012 RG-CASE-007 RG-LAYER-003 RG-DERIVE-001 RG-POLICY-012 RG-ATOMIC-005 RG-ABI-009 
+
+The exact wording may vary between compilers.
+
+The diagnostic category and semantic condition must remain consistent.
+
+Safety-critical profiles can require exact diagnostic records for certification.
+
+---
+
+# 60. Example: Policy and Vectorization Resolution
+
+rg1 policy safety safety {     deny data_race mandatory }  policy vectorization optimization {     require width 256 }  function scale(     input: read slice<f32>,     output: write slice<f32>,     factor: f32 ) -> allow<void> deny<AliasError> {     if overlaps(input, output)     {         return deny AliasError()     }      math loop vector<256> index in 0 ..< input.length     tail scalar     {         set output[index] <-             input[index] * factor     }      return allow } 
+
+Resolution order:
+
+1. The types are validated.
+2. Read/write ownership is validated.
+3. Alias behavior is analyzed.
+4. The runtime overlap guard is retained.
+5. The guarded nonoverlap path is vectorized.
+6. The overlap path returns a denial.
+7. No unsafe vector path is emitted.
+
+---
+
+# 61. Example: Deterministic Layered Reduction
+
+rg1 policy determinism semantic {     level schedule }  layers calculation {     layer partials     {         parallel         {             set part_a <- sum(values[0 ..< midpoint])         }          parallel         {             set part_b <- sum(values[midpoint ..< values.length])         }     }      merge ordered [part_a, part_b] into total } 
+
+The merge order is fixed.
+
+A compiler may schedule the two partial calculations in any order or concurrently, but it must combine them in the declared order.
+
+---
+
+# 62. Example: Dynamic Derivation
+
+rg1 derive dynamic interface_state     from plugin_dependencies policy {     consistency snapshot     cycle deny     update coalesced } {     interface_state =         evaluate_plugins(plugin_dependencies) } 
+
+The runtime must:
+
+1. Capture a stable dependency snapshot.
+2. Validate the graph.
+3. Deny cyclic dependency sets.
+4. Evaluate in topological order.
+5. Publish the completed state atomically.
+6. Discard partial unpublished state on denial.
+
+---
+
+# 63. Example: Atomics
+
+rg1 atomic<u64> completed_jobs = 0  case worker {     call perform_job()      completed_jobs.add     (         1,         order release     ) }  origin main {     spawn case worker     wait worker      let count =         completed_jobs.load         (             order acquire         )      emit count } 
+
+Case completion already establishes synchronization with wait.
+
+The explicit atomic ordering remains valid and useful when the counter is observed through other paths.
+
+---
+
+# 64. Example: Volatile Is Not Atomic
+
+rg1 direct {     let status_register =         cast<address<volatile u32>>(STATUS_ADDRESS)      let status =         read volatile status_register } 
+
+This guarantees the hardware read occurs.
+
+It does not make concurrent access thread-safe.
+
+For shared atomic state:
+
+rg1 atomic<u32> status 
+
+must be used instead.
+
+---
+
+# 65. Foundational Language Law
+
+Every conforming implementation follows these laws:
+
+1. Program meaning is defined before optimization.
+2. Safety rules cannot be weakened by code-generation preferences.
+3. Ownership determines who may access a value.
+4. Concurrency rules determine when writes become visible.
+5. Layout determines physical representation but cannot alter meaning.
+6. Deduction removes only checks backed by valid proofs.
+7. Unproven safety conditions require runtime guards.
+8. Required optimizations fail loudly when they cannot be satisfied.
+9. Dynamic workloads remain valid through explicit runtime mechanisms.
+10. Target hardware may change implementation, never semantics.
+
+---
+
+# 66. Definitive Normative Statement
+
+Raygen is a strongly typed, native-width, 256-bit-capable, execution-oriented programming language with explicit syntax, directive grammar, typed failure flow, visible memory intent, bounded deduction, structured derivation, case-based concurrency, ordered-layer parallelism, and a formal cross-platform memory model.
+
+Its semantic systems operate under a fixed precedence hierarchy.
+
+Its policies have defined classes, scopes, and conflict rules.
+
+Its grammar is formally specified.
+
+Its concurrency constructs define lifetime, visibility, cancellation, synchronization, and publication.
+
+Its atomic operations define cross-architecture ordering.
+
+Its deterministic guarantees are divided into build, semantic, scheduling, and bitwise numerical categories.
+
+Its standard library is separated from its language kernel.
+
+Its compiler implementations are governed by explicit conformance levels and test suites.
+
+Raygen’s final constitutional rule is:
+
+> Meaning comes first.  
+> Safety constrains execution.  
+> Ownership constrains access.  
+> Concurrency constrains visibility.  
+> Layout constrains representation.  
+> Deduction removes only proven checks.  
+> Optimization changes implementation, never meaning.
+
+And its execution principle remains:
+
+> Establish the origin.  
+> Define the direction.  
+> Prove the valid path.  
+> Guard the dynamic path.  
+> Generate the execution.
+
+
+
+
 UPDATED LANGUAGE EDITION 07/21/2006
 
 
