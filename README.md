@@ -1,5 +1,3 @@
-# Raygen Programming Language
-
 ** UPDATED VERSION 07/22/2026 **
 
 # Raygen Programming Language
