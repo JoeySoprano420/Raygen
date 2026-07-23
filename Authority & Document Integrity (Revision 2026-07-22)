@@ -192,6 +192,3 @@ A compiler conforms to Revision 2026-07-22 when it:
 - does not rely upon superseded editions when interpreting source programs.
 
 Conformance SHALL be determined solely against this revision of the Normative Core.
-
-
-
