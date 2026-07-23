@@ -2217,3 +2217,433 @@ No implementation may claim Raygen 1 abstraction conformance while permitting am
 
 
 
+# Raygen 1 Normative Core
+## Part 7 — Modules, Packages, Imports, Visibility, Namespaces, and Compilation Units
+
+### 7.1 Purpose
+
+This section defines the normative program organization model for Raygen 1.
+
+The module system establishes:
+
+- compilation units,
+- modules,
+- packages,
+- namespaces,
+- imports,
+- exports,
+- visibility,
+- dependency resolution,
+- edition compatibility.
+
+A conforming implementation SHALL enforce these rules during compilation.
+
+---
+
+# 7.2 Organizational Principles
+
+The Raygen module system is governed by the following principles.
+
+1. Every declaration belongs to exactly one module.
+
+2. Every module belongs to exactly one package.
+
+3. Every package defines a unique public namespace.
+
+4. Name resolution is deterministic.
+
+5. Visibility is explicit.
+
+6. Circular module initialization is prohibited.
+
+---
+
+# 7.3 Compilation Unit
+
+A compilation unit is the smallest independently parsed source file.
+
+Each compilation unit SHALL contain:
+
+- one edition declaration,
+- zero or more imports,
+- zero or more declarations.
+
+Compilation units SHALL be parsed independently before semantic analysis.
+
+---
+
+# 7.4 Module
+
+A module is a logical collection of declarations.
+
+A module provides a namespace boundary.
+
+Modules SHALL contain:
+
+- type declarations,
+- function declarations,
+- trait declarations,
+- constant declarations,
+- submodules.
+
+Modules SHALL NOT overlap.
+
+Every declaration belongs to exactly one module.
+
+---
+
+# 7.5 Package
+
+A package is the primary compilation artifact.
+
+A package consists of:
+
+- one root module,
+- zero or more child modules,
+- package metadata,
+- dependency declarations.
+
+Every package possesses a unique package identifier.
+
+---
+
+# 7.6 Package Identity
+
+A package identity consists of:
+
+- package name,
+- edition,
+- version.
+
+The package identifier SHALL uniquely distinguish packages participating in compilation.
+
+Version comparison SHALL follow the package specification defined by the build system.
+
+---
+
+# 7.7 Root Module
+
+Every package SHALL define exactly one root module.
+
+The root module establishes:
+
+- package entry declarations,
+- exported symbols,
+- child module hierarchy.
+
+Compilation begins from the root module.
+
+---
+
+# 7.8 Submodules
+
+Modules may contain child modules.
+
+Each child module possesses exactly one parent.
+
+Module relationships form a rooted tree.
+
+Cycles within the module hierarchy are prohibited.
+
+---
+
+# 7.9 Namespace
+
+Each module defines an independent namespace.
+
+Identifiers declared within one namespace SHALL NOT automatically appear in another namespace.
+
+Visibility determines accessibility.
+
+---
+
+# 7.10 Declaration Scope
+
+A declaration is visible only within its defining scope unless exported.
+
+Scopes include:
+
+- module scope,
+- block scope,
+- function scope,
+- generic parameter scope.
+
+Name lookup SHALL follow lexical scope.
+
+---
+
+# 7.11 Visibility Levels
+
+Raygen defines the following visibility levels:
+
+text private  module  package  public 
+
+Each declaration possesses exactly one visibility level.
+
+---
+
+## private
+
+Visible only within the enclosing declaration.
+
+---
+
+## module
+
+Visible throughout the defining module.
+
+---
+
+## package
+
+Visible to every module within the same package.
+
+---
+
+## public
+
+Visible to importing packages.
+
+---
+
+# 7.12 Export
+
+Only public declarations may be exported.
+
+Exported declarations become part of the package's public interface.
+
+Private implementation details SHALL NOT become visible through export.
+
+---
+
+# 7.13 Import
+
+Imports introduce external declarations into the current compilation unit.
+
+An import SHALL specify:
+
+- the source package,
+- the source module,
+- the imported declaration.
+
+Wildcard imports are not part of the Raygen 1 normative core unless explicitly enabled by an implementation profile.
+
+---
+
+# 7.14 Qualified Imports
+
+A qualified import preserves the original namespace.
+
+Example (illustrative):
+
+text math::sqrt 
+
+Qualified imports reduce identifier ambiguity.
+
+---
+
+# 7.15 Aliased Imports
+
+Imports may define local aliases.
+
+Example (illustrative):
+
+text math as m 
+
+Aliases affect only the importing compilation unit.
+
+They SHALL NOT modify exported names.
+
+---
+
+# 7.16 Name Resolution
+
+Name resolution proceeds in the following order:
+
+1. Local declarations.
+
+2. Block scope.
+
+3. Module scope.
+
+4. Explicit imports.
+
+5. Package-visible declarations.
+
+6. Fully qualified names.
+
+If multiple candidates remain equally valid, resolution is ambiguous.
+
+Ambiguous references SHALL be rejected.
+
+---
+
+# 7.17 Shadowing
+
+Inner scopes may shadow outer declarations.
+
+Shadowing SHALL NOT alter the meaning of declarations outside the shadowing scope.
+
+Implementations SHOULD diagnose accidental shadowing when it is likely to cause confusion.
+
+---
+
+# 7.18 Re-Export
+
+A package may explicitly re-export imported declarations.
+
+Re-exported declarations become part of the package's public interface.
+
+Re-export SHALL NOT modify the declaration's semantic identity.
+
+---
+
+# 7.19 Dependency Graph
+
+Package dependencies form a directed graph.
+
+Dependency edges are established through package imports.
+
+The dependency graph SHALL be acyclic.
+
+Circular package dependencies are prohibited.
+
+---
+
+# 7.20 Module Initialization
+
+Modules initialize in dependency order.
+
+A module SHALL NOT observe partially initialized state from another module.
+
+Initialization order SHALL be deterministic.
+
+---
+
+# 7.21 Static Initialization
+
+Static objects initialize before program execution.
+
+Initialization SHALL occur exactly once.
+
+If initialization fails, the package SHALL fail to initialize.
+
+Partially initialized objects SHALL be destroyed according to the ownership rules defined in Part 4.
+
+---
+
+# 7.22 Entry Point
+
+An executable package SHALL define exactly one program entry point.
+
+The entry point signature SHALL conform to the execution specification.
+
+Multiple entry points within a single executable package are prohibited.
+
+Library packages SHALL NOT define executable entry points.
+
+---
+
+# 7.23 Separate Compilation
+
+Modules may be compiled independently.
+
+Separate compilation SHALL preserve:
+
+- type correctness,
+- ownership verification,
+- trait coherence,
+- visibility semantics.
+
+Link-time processing SHALL NOT alter language semantics.
+
+---
+
+# 7.24 Symbol Identity
+
+Each exported declaration possesses one canonical symbol identity.
+
+Symbol identity is independent of:
+
+- source filename,
+- compilation order,
+- object layout,
+- optimization level.
+
+---
+
+# 7.25 Edition Compatibility
+
+Each compilation unit declares exactly one language edition.
+
+Compilation units belonging to different editions SHALL interact only through explicitly defined compatibility rules.
+
+A Raygen 1 implementation SHALL reject unsupported edition combinations.
+
+---
+
+# 7.26 Standard Library
+
+The standard library is provided as one or more packages.
+
+Standard library declarations participate in ordinary visibility and import rules.
+
+Standard library identifiers are not reserved keywords unless explicitly defined by the grammar.
+
+---
+
+# 7.27 Build Profiles
+
+Build profiles may define:
+
+- optimization level,
+- diagnostics,
+- target architecture,
+- feature selection.
+
+Build profiles SHALL NOT alter the normative language semantics.
+
+A program accepted under one conforming profile SHALL preserve identical observable behavior under another conforming profile, except where implementation-defined performance characteristics differ.
+
+---
+
+# 7.28 Implementation-Defined Packages
+
+Implementations may provide additional packages.
+
+Implementation-defined packages SHALL NOT redefine normative language behavior.
+
+Programs depending upon implementation-defined packages are not automatically portable across conforming implementations.
+
+---
+
+# 7.29 Diagnostic Requirements
+
+When module resolution fails, implementations SHALL identify:
+
+- the unresolved package,
+- the unresolved module,
+- the unresolved declaration,
+- the importing location.
+
+When dependency cycles are detected, diagnostics SHALL identify every participating package or module in the cycle.
+
+---
+
+# 7.30 Module System Conformance
+
+A conforming implementation SHALL:
+
+- implement deterministic module resolution,
+- enforce explicit visibility,
+- preserve namespace isolation,
+- prohibit cyclic package dependencies,
+- initialize modules deterministically,
+- preserve symbol identity,
+- enforce edition compatibility,
+- support separate compilation without altering language semantics.
+
+No implementation may claim Raygen 1 module-system conformance while permitting ambiguous imports, nondeterministic initialization, visibility violations, cyclic dependency graphs, or implementation-defined name resolution within the normative language.
+
+
+
