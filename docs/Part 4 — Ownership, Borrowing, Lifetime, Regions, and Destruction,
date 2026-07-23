@@ -1,1 +1,417 @@
+# Raygen 1 Normative Core
+## Part 4 — Ownership, Borrowing, Lifetimes, Regions, and Destruction
 
+### 4.1 Purpose
+
+This section defines the normative ownership model for Raygen 1.
+
+The ownership system guarantees:
+
+- memory safety,
+- deterministic destruction,
+- absence of use-after-free,
+- absence of double destruction,
+- statically verified borrowing,
+- deterministic lifetime analysis.
+
+A conforming implementation SHALL enforce these rules during semantic analysis.
+
+---
+
+# 4.2 Ownership Principles
+
+Every runtime object has exactly one ownership state.
+
+An object is either:
+
+- owned,
+- borrowed immutably,
+- borrowed mutably,
+- moved, or
+- destroyed.
+
+No object may simultaneously exist in multiple ownership states.
+
+---
+
+# 4.3 Ownership Identity
+
+An owned value possesses exclusive authority over its storage.
+
+Ownership includes responsibility for:
+
+- destruction,
+- resource release,
+- lifetime termination.
+
+Ownership is transferred only through language-defined move operations.
+
+Copying ownership is prohibited unless the type explicitly permits duplication.
+
+---
+
+# 4.4 Move Semantics
+
+A move transfers ownership from one binding to another.
+
+Example:
+
+text let packet2 = move packet1 
+
+After a successful move:
+
+- the destination becomes the owner,
+- the source becomes invalid.
+
+Any subsequent use of the source SHALL be rejected.
+
+Example:
+
+text let b = move a  print(a) 
+
+The final statement is ill-formed.
+
+---
+
+# 4.5 Copy Semantics
+
+Types may define copy semantics.
+
+Copying duplicates the value without transferring ownership.
+
+Only types satisfying the language's copy requirements may be copied implicitly.
+
+All other types require explicit movement.
+
+---
+
+# 4.6 Borrowing
+
+Borrowing creates temporary access without transferring ownership.
+
+Borrowing never extends ownership.
+
+The original owner remains responsible for destruction.
+
+Borrowing creates a lifetime constraint between:
+
+- borrower,
+- owner.
+
+---
+
+# 4.7 Immutable Borrow
+
+An immutable borrow provides shared read-only access.
+
+Example:
+
+text read Packet 
+
+Properties:
+
+- unlimited concurrent immutable borrows,
+- mutation prohibited,
+- ownership unchanged.
+
+---
+
+# 4.8 Mutable Borrow
+
+A mutable borrow provides exclusive write access.
+
+Example:
+
+text write Packet 
+
+During an active mutable borrow:
+
+- no immutable borrow may coexist,
+- no second mutable borrow may exist,
+- ownership remains unchanged.
+
+---
+
+# 4.9 Borrow Exclusivity
+
+At every program point exactly one of the following is true:
+
+- any number of immutable borrows exist, or
+- exactly one mutable borrow exists.
+
+Both conditions SHALL NEVER hold simultaneously.
+
+Violation is a compile-time error.
+
+---
+
+# 4.10 Lifetime
+
+Every reference has a statically determined lifetime.
+
+A lifetime begins when the borrow is created.
+
+A lifetime ends at the final legal use of that borrow.
+
+Lifetime analysis SHALL use semantic usage rather than lexical scope whenever possible.
+
+---
+
+# 4.11 Non-Lexical Lifetimes
+
+Implementations SHALL support non-lexical lifetime analysis.
+
+A borrow terminates after its final observable use.
+
+Example:
+
+text read data  print(data)  /* borrow ends here */  modify(data_owner) 
+
+The borrow does not remain active merely because the enclosing block continues.
+
+---
+
+# 4.12 Lifetime Validity
+
+A borrow SHALL NOT outlive its owner.
+
+Example:
+
+text {     let value      return read value } 
+
+The returned borrow exceeds the owner's lifetime.
+
+The program is ill-formed.
+
+---
+
+# 4.13 Escape Analysis
+
+References SHALL NOT escape beyond their verified lifetime.
+
+Examples include:
+
+- returning local borrows,
+- storing short-lived references into long-lived storage,
+- spawning asynchronous work using expired references.
+
+The compiler SHALL reject every escaping borrow.
+
+---
+
+# 4.14 Region Model
+
+Each allocation belongs to exactly one region.
+
+Regions define:
+
+- allocation scope,
+- destruction scope,
+- lifetime boundaries.
+
+Objects from different regions remain independent unless explicitly connected through ownership transfer.
+
+---
+
+# 4.15 Region Nesting
+
+Child regions terminate before parent regions.
+
+The following invariant SHALL hold:
+
+text child lifetime ⊂ parent lifetime 
+
+References from a parent region into a child region are prohibited unless lifetime analysis proves safety.
+
+---
+
+# 4.16 Destruction
+
+Every owned object is destroyed exactly once.
+
+Destruction occurs when ownership terminates.
+
+A conforming implementation SHALL guarantee:
+
+- no double destruction,
+- no missed destruction,
+- deterministic ordering.
+
+---
+
+# 4.17 Destruction Order
+
+Objects within the same scope are destroyed in reverse construction order.
+
+Example:
+
+text let first  let second 
+
+Destruction proceeds as:
+
+text destroy(second)  destroy(first) 
+
+This ordering is normative.
+
+---
+
+# 4.18 Partial Initialization
+
+Objects are considered initialized only after successful completion of initialization.
+
+If initialization fails:
+
+- initialized components are destroyed,
+- uninitialized components are ignored.
+
+The compiler SHALL preserve deterministic cleanup.
+
+---
+
+# 4.19 Destructors
+
+A destructor executes automatically when ownership ends.
+
+A destructor SHALL execute at most once.
+
+Destructors SHALL NOT be invoked explicitly by user code except through language-defined unsafe mechanisms.
+
+---
+
+# 4.20 Destruction During Failure
+
+If execution terminates because of denial propagation,
+
+all active owned objects whose lifetimes end during stack unwinding SHALL be destroyed in reverse ownership order.
+
+Cleanup SHALL remain deterministic.
+
+---
+
+# 4.21 Cyclic Ownership
+
+Pure ownership graphs SHALL be acyclic.
+
+Reference cycles that prevent deterministic destruction are prohibited.
+
+Shared ownership mechanisms, if provided by future language editions, SHALL define independent cycle management semantics.
+
+---
+
+# 4.22 Pinning
+
+Pinned objects possess stable storage addresses.
+
+Pinned ownership prohibits relocation after pinning.
+
+Move operations involving pinned values are illegal unless explicitly released.
+
+---
+
+# 4.23 Self-Referential Objects
+
+Self-referential objects require stable addresses.
+
+Construction is legal only after the object has obtained stable storage.
+
+Implementations SHALL reject constructions that would invalidate internal references through relocation.
+
+---
+
+# 4.24 Aliasing
+
+Aliasing is permitted only through immutable borrowing.
+
+Mutable aliasing is prohibited unless explicitly authorized by the language's concurrency model.
+
+Unsafe mechanisms may temporarily suspend aliasing guarantees but SHALL remain outside ordinary safe semantics.
+
+---
+
+# 4.25 Ownership Across Function Calls
+
+Ownership behavior is determined by parameter qualification.
+
+text own T 
+
+Ownership transfers into the callee.
+
+text read T 
+
+Shared borrow.
+
+text write T 
+
+Exclusive mutable borrow.
+
+Ownership SHALL behave exactly as specified by the declared parameter contract.
+
+---
+
+# 4.26 Return Ownership
+
+Returning an owned value transfers ownership to the caller.
+
+Returning a borrow transfers only the borrow.
+
+The compiler SHALL verify that returned borrows remain valid.
+
+---
+
+# 4.27 Closures
+
+A closure may capture variables by:
+
+- immutable borrow,
+- mutable borrow,
+- ownership transfer.
+
+The capture mode SHALL be inferred only when the result is unambiguous.
+
+Otherwise an explicit capture declaration is required.
+
+Captured lifetimes remain subject to ordinary borrow verification.
+
+---
+
+# 4.28 Concurrency Interaction
+
+Ownership rules remain valid across concurrent execution.
+
+No ownership rule is relaxed because execution becomes parallel.
+
+Ownership transfer between concurrent execution contexts SHALL be explicit.
+
+---
+
+# 4.29 Unsafe Ownership Operations
+
+Unsafe operations may temporarily bypass ownership verification.
+
+Unsafe code SHALL remain responsible for preserving:
+
+- lifetime validity,
+- aliasing correctness,
+- destruction correctness,
+- ownership consistency.
+
+Violation produces undefined behavior.
+
+---
+
+# 4.30 Ownership Conformance
+
+A conforming implementation SHALL:
+
+- enforce exclusive ownership,
+- reject invalid moves,
+- verify borrow lifetimes,
+- implement non-lexical lifetime analysis,
+- perform escape analysis,
+- guarantee deterministic destruction,
+- reject use-after-move,
+- reject dangling references,
+- reject mutable aliasing,
+- preserve ownership semantics across concurrency boundaries.
+
+No implementation may claim ownership conformance while permitting use-after-free, double destruction, invalid borrowing, or lifetime violations within safe Raygen programs.
