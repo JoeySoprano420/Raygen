@@ -1,0 +1,197 @@
+# Raygen 1 Normative Core
+## Part 1 — Authority & Document Integrity (Revision 2026-07-22)
+
+### 1. Document Authority
+
+This document is the sole normative specification for the Raygen 1 programming language.
+
+Document Identifier: RG-NCORE-1.0
+
+Revision: 2026-07-22
+
+All compiler conformance, language interpretation, and future amendments SHALL reference this document identifier and revision.
+
+Any implementation claiming conformance SHALL implement the language defined herein.
+
+---
+
+## 2. Supersession
+
+This edition supersedes every previous Raygen language description where any conflict exists.
+
+Earlier drafts remain historical reference material only.
+
+The following materials are non-authoritative whenever they conflict with this document:
+
+- preliminary language proposals
+- design notes
+- experimental drafts
+- archived specifications
+- examples published before Revision 2026-07-22
+
+Only the current Normative Core establishes required compiler behavior.
+
+---
+
+## 3. Historical Editions
+
+Earlier language documents MAY be retained for archival purposes.
+
+Historical editions SHALL NOT modify or reinterpret the meaning of this specification.
+
+A historical document SHALL clearly state that it has been superseded.
+
+Historical examples SHALL NOT be treated as normative language rules.
+
+---
+
+## 4. Separation of Normative and Informative Material
+
+This specification distinguishes normative requirements from informative material.
+
+Normative material defines language behavior and compiler obligations.
+
+Informative material exists only to aid understanding.
+
+The following SHALL be considered informative unless explicitly stated otherwise:
+
+- examples
+- explanatory notes
+- implementation guidance
+- rationale
+- optimization discussion
+- historical commentary
+- migration guidance
+- performance discussion
+
+Marketing, adoption, popularity, or competitive claims SHALL NOT appear within normative sections.
+
+---
+
+## 5. Conformance Language
+
+The following terminology has normative meaning.
+
+SHALL
+
+A mandatory language requirement.
+
+SHALL NOT
+
+A prohibited language behavior.
+
+REQUIRED
+
+A mandatory implementation obligation.
+
+MUST
+
+Equivalent to SHALL.
+
+MUST NOT
+
+Equivalent to SHALL NOT.
+
+SHOULD
+
+A recommended behavior that may be omitted only with documented justification.
+
+MAY
+
+An optional implementation behavior.
+
+No other wording carries normative force.
+
+---
+
+## 6. Normative Precedence
+
+Whenever multiple language rules appear applicable, the following precedence order SHALL apply.
+
+1. Language semantics
+2. Type safety
+3. Ownership and lifetime correctness
+4. Concurrency and memory-model correctness
+5. Explicit semantic policies
+6. Explicit safety policies
+7. Mandatory ABI and representation contracts
+8. Mandatory layout requirements
+9. Derived semantic facts
+10. Optimization requirements
+11. Optimization preferences
+12. Target-specific heuristics
+
+No lower-precedence rule may invalidate a higher-precedence rule.
+
+Optimization SHALL preserve all higher-precedence guarantees.
+
+---
+
+## 7. Compilation Ordering
+
+A conforming implementation SHALL establish correctness before optimization.
+
+The minimum semantic ordering is:
+
+1. lexical analysis
+2. parsing
+3. name resolution
+4. type checking
+5. ownership and lifetime analysis
+6. alias and provenance analysis
+7. concurrency analysis
+8. integer-width determination
+9. foreign-interface validation
+10. semantic deduction
+11. legality verification
+12. optimization
+13. lowering
+14. code generation
+
+Implementations MAY internally reorder phases provided that the observable semantics remain identical to this ordering.
+
+Semantic deduction SHALL be considered valid only after all prerequisite semantic analyses have completed.
+
+---
+
+## 8. Section References
+
+Every normative section SHALL possess a unique section number.
+
+Normative references SHALL resolve unambiguously to a single section within this document.
+
+No duplicated section numbering is permitted.
+
+Future amendments SHALL preserve stable section references whenever practical.
+
+---
+
+## 9. Amendment Rules
+
+Future revisions SHALL identify every modified section.
+
+Each amendment SHALL specify:
+
+- affected section numbers
+- replacement text
+- effective revision
+- compatibility impact
+
+Partial amendments SHALL NOT redefine unaffected sections.
+
+---
+
+## 10. Compiler Conformance
+
+A compiler conforms to Revision 2026-07-22 when it:
+
+- implements every mandatory rule defined by this specification;
+- rejects every prohibited construct identified herein;
+- preserves the required semantic guarantees;
+- reports non-conforming programs as diagnostics; and
+- does not rely upon superseded editions when interpreting source programs.
+
+Conformance SHALL be determined solely against this revision of the Normative Core.
+
+
+
