@@ -1,0 +1,406 @@
+# Raygen 1 Normative Core
+## Part 6 — Traits, Interfaces, Derivations, Generic Constraints, and Compile-Time Resolution
+
+### 6.1 Purpose
+
+This section defines the normative abstraction system for Raygen 1.
+
+The abstraction system establishes:
+
+- traits,
+- interfaces,
+- implementations,
+- derivations,
+- associated members,
+- generic constraints,
+- overload resolution,
+- method dispatch.
+
+A conforming implementation SHALL apply these rules uniformly during semantic analysis.
+
+---
+
+# 6.2 Design Principles
+
+The abstraction system is governed by the following principles.
+
+1. Every implementation is statically known.
+
+2. Trait resolution is deterministic.
+
+3. Exactly one applicable implementation shall exist.
+
+4. Generic substitution preserves program semantics.
+
+5. Derivations are declarative.
+
+6. Runtime dispatch is explicit.
+
+---
+
+# 6.3 Trait Definition
+
+A trait defines a collection of behavioral requirements.
+
+A trait may contain:
+
+- required functions,
+- provided default functions,
+- associated types,
+- associated constants.
+
+Traits do not contain storage.
+
+---
+
+# 6.4 Trait Members
+
+Each member of a trait has a unique identifier.
+
+A member SHALL NOT be overloaded solely by return type.
+
+Every declared member has exactly one complete type signature.
+
+---
+
+# 6.5 Required Members
+
+A required member has no implementation within the trait.
+
+Every concrete implementation SHALL provide all required members unless satisfied by inherited defaults.
+
+Failure to satisfy all required members is a compile-time error.
+
+---
+
+# 6.6 Default Members
+
+A trait may provide default implementations.
+
+An implementing type may override a default implementation.
+
+If no override exists, the default implementation is used.
+
+Default implementations participate in ordinary type checking.
+
+---
+
+# 6.7 Associated Types
+
+Traits may declare associated types.
+
+Example (illustrative):
+
+text id="p7q9m1" type Item 
+
+Each implementation SHALL bind every associated type exactly once.
+
+Associated types become part of the implementation's public contract.
+
+---
+
+# 6.8 Associated Constants
+
+Traits may declare associated constants.
+
+Each implementation SHALL define every required associated constant.
+
+Associated constants are compile-time values.
+
+---
+
+# 6.9 Trait Implementation
+
+An implementation binds a concrete type to a trait.
+
+Each implementation SHALL satisfy:
+
+- all required members,
+- all associated types,
+- all associated constants,
+- every declared constraint.
+
+Incomplete implementations are ill-formed.
+
+---
+
+# 6.10 Coherence
+
+For every concrete type and trait pair:
+
+exactly one implementation SHALL exist.
+
+Multiple applicable implementations are prohibited.
+
+Implementations SHALL be unambiguous.
+
+---
+
+# 6.11 Orphan Rule
+
+A package may define a trait implementation only if it defines:
+
+- the trait, or
+- the implementing type.
+
+This rule preserves global coherence.
+
+---
+
+# 6.12 Specialization
+
+Trait specialization is not part of Raygen 1.
+
+An implementation SHALL NOT partially override another implementation based upon more specific type arguments.
+
+Future language editions may define specialization independently.
+
+---
+
+# 6.13 Generic Parameters
+
+Generic declarations may introduce:
+
+- type parameters,
+- constant integer parameters.
+
+Each parameter has a unique identifier.
+
+Parameter names SHALL be distinct within the same declaration.
+
+---
+
+# 6.14 Generic Constraints
+
+Generic parameters may declare trait requirements.
+
+Example (illustrative):
+
+text id="k3f0r8" T where Comparable 
+
+A generic argument SHALL satisfy every declared constraint.
+
+Unsatisfied constraints are compile-time errors.
+
+---
+
+# 6.15 Constraint Satisfaction
+
+Constraint satisfaction is determined entirely at compile time.
+
+A type satisfies a constraint only if:
+
+- an applicable implementation exists, and
+- every required associated member is available.
+
+No runtime constraint resolution occurs.
+
+---
+
+# 6.16 Generic Substitution
+
+Generic substitution replaces formal parameters with concrete arguments.
+
+Substitution SHALL preserve:
+
+- type correctness,
+- ownership semantics,
+- lifetime correctness,
+- failure-flow semantics.
+
+No substitution may alter observable language behavior.
+
+---
+
+# 6.17 Monomorphization Independence
+
+Implementations MAY generate:
+
+- specialized code,
+- shared generic code,
+- hybrid strategies.
+
+The chosen implementation strategy SHALL NOT alter program semantics.
+
+---
+
+# 6.18 Method Resolution
+
+Method resolution proceeds in the following order:
+
+1. Inherent members of the concrete type.
+
+2. Trait members made available through satisfied constraints.
+
+3. Explicitly qualified trait members.
+
+If resolution remains ambiguous, compilation SHALL fail.
+
+---
+
+# 6.19 Fully Qualified Calls
+
+When multiple member names are visible, the programmer SHALL explicitly identify the intended trait.
+
+A fully qualified call uniquely specifies:
+
+- the implementing type,
+- the trait,
+- the selected member.
+
+---
+
+# 6.20 Overload Resolution
+
+Overload resolution considers:
+
+- function name,
+- parameter count,
+- parameter types,
+- generic substitutions,
+- constraint satisfaction.
+
+Return types SHALL NOT participate in overload resolution.
+
+If multiple candidates remain equally applicable, the call is ambiguous.
+
+Ambiguous calls SHALL be rejected.
+
+---
+
+# 6.21 Interface Definitions
+
+An interface specifies externally observable behavior.
+
+Interfaces define contracts rather than implementation inheritance.
+
+Interfaces may require:
+
+- functions,
+- associated types,
+- associated constants.
+
+Interfaces SHALL NOT define storage layout.
+
+---
+
+# 6.22 Interface Satisfaction
+
+A type satisfies an interface only by explicit declaration.
+
+Structural conformance alone is insufficient.
+
+Implicit interface implementation is prohibited.
+
+---
+
+# 6.23 Derivations
+
+A derivation automatically generates language-defined implementations.
+
+Derivations are declarative.
+
+The compiler SHALL generate only implementations explicitly authorized by the specification.
+
+No implementation may infer undeclared derivations.
+
+---
+
+# 6.24 Derivation Validity
+
+A derivation is valid only when every participating field satisfies the derivation requirements.
+
+Example requirements include:
+
+- comparable fields,
+- hashable fields,
+- cloneable fields.
+
+Failure of any participating member invalidates the derivation.
+
+---
+
+# 6.25 Derivation Order
+
+Multiple derivations are independent.
+
+The observable semantics of one derivation SHALL NOT depend upon the textual ordering of unrelated derivations.
+
+Where dependencies exist, the specification defining that derivation SHALL describe them explicitly.
+
+---
+
+# 6.26 Compile-Time Evaluation
+
+Trait resolution,
+
+constraint verification,
+
+generic substitution,
+
+and derivation validation
+
+are compile-time operations.
+
+No runtime reflection is required for these processes.
+
+---
+
+# 6.27 Dynamic Dispatch
+
+Raygen favors static dispatch.
+
+Dynamic dispatch is permitted only through explicitly declared runtime interface objects.
+
+Dynamic dispatch SHALL NOT occur implicitly.
+
+---
+
+# 6.28 Reflection
+
+Compile-time reflection MAY be supported through future language editions.
+
+Runtime reflection is outside the Raygen 1 normative core unless explicitly defined by another specification.
+
+Programs SHALL NOT depend upon implementation-specific reflection behavior.
+
+---
+
+# 6.29 Name Lookup
+
+Name lookup proceeds according to lexical scope.
+
+Imported names participate only after successful import resolution.
+
+Trait members become visible only after the associated trait participates in successful type resolution.
+
+---
+
+# 6.30 Diagnostic Requirements
+
+When constraint resolution fails, implementations SHALL diagnose:
+
+- the unsatisfied constraint,
+- the affected declaration,
+- the missing implementation,
+- the location responsible for failure.
+
+Diagnostics SHOULD identify candidate implementations when ambiguity exists.
+
+---
+
+# 6.31 Abstraction Conformance
+
+A conforming implementation SHALL:
+
+- implement deterministic trait resolution,
+- enforce coherence,
+- enforce the orphan rule,
+- reject specialization,
+- verify generic constraints,
+- preserve substitution semantics,
+- resolve overloads deterministically,
+- generate only valid derivations,
+- prohibit implicit runtime dispatch.
+
+No implementation may claim Raygen 1 abstraction conformance while permitting ambiguous implementations, inconsistent generic substitution, multiple applicable trait implementations, or implementation-defined overload resolution.
