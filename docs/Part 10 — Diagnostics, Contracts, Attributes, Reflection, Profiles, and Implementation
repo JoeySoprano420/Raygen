@@ -1,1 +1,485 @@
+# Raygen 1 Normative Core
+## Part 10 — Diagnostics, Contracts, Attributes, Reflection, Profiles, Deprecation, and Implementation Conformance
 
+### 10.1 Purpose
+
+This section defines the normative requirements governing:
+
+- diagnostics,
+- compile-time contracts,
+- attributes,
+- reflection,
+- implementation-defined behavior,
+- language profiles,
+- deprecation,
+- editions,
+- conformance.
+
+This Part specifies the obligations of both Raygen programs and conforming implementations.
+
+---
+
+# 10.2 General Principles
+
+A conforming implementation SHALL:
+
+- diagnose violations of mandatory language rules,
+- preserve deterministic program meaning,
+- identify implementation-defined behavior,
+- distinguish errors from warnings,
+- maintain edition compatibility according to this specification.
+
+---
+
+# 10.3 Diagnostic Categories
+
+Diagnostics are classified as:
+
+text error  warning  note  information 
+
+---
+
+## Error
+
+An error indicates violation of a mandatory language rule.
+
+Compilation SHALL fail if any error remains unresolved.
+
+---
+
+## Warning
+
+A warning indicates potentially undesirable or unsafe program behavior.
+
+Warnings SHALL NOT prevent successful compilation unless elevated by implementation configuration.
+
+---
+
+## Note
+
+Notes provide supplemental explanatory information associated with another diagnostic.
+
+Notes SHALL NOT independently affect compilation.
+
+---
+
+## Information
+
+Informational diagnostics communicate implementation details that do not indicate incorrect programs.
+
+---
+
+# 10.4 Mandatory Diagnostics
+
+The implementation SHALL diagnose violations involving:
+
+- syntax,
+- name resolution,
+- type checking,
+- ownership,
+- borrowing,
+- lifetime analysis,
+- visibility,
+- duplicate declarations,
+- invalid generics,
+- invalid trait implementations,
+- pattern exhaustiveness,
+- unreachable required return paths,
+- invalid attributes,
+- invalid contracts,
+- profile violations.
+
+---
+
+# 10.5 Diagnostic Quality
+
+Diagnostics SHOULD identify:
+
+- source location,
+- violated rule,
+- relevant declarations,
+- possible corrective actions.
+
+Implementations MAY include additional explanatory information.
+
+---
+
+# 10.6 Compile-Time Contracts
+
+Contracts express semantic requirements beyond ordinary type checking.
+
+Contracts are evaluated during compilation whenever sufficient information is available.
+
+Contracts SHALL NOT alter program semantics.
+
+---
+
+# 10.7 Preconditions
+
+A precondition specifies requirements that SHALL hold before execution of an operation.
+
+Violation of a compile-time-verifiable precondition SHALL produce a compilation error.
+
+Runtime-verifiable preconditions SHALL produce deterministic failure according to the language failure model.
+
+---
+
+# 10.8 Postconditions
+
+A postcondition specifies properties guaranteed after successful execution.
+
+Implementations SHALL preserve observable behavior while verifying postconditions.
+
+---
+
+# 10.9 Invariants
+
+An invariant defines a property that SHALL remain true throughout the lifetime of an object or abstraction.
+
+Violation of an invariant constitutes program failure.
+
+---
+
+# 10.10 Compile-Time Assertions
+
+Compile-time assertions evaluate constant expressions.
+
+Failure SHALL produce a compilation error.
+
+Compile-time assertions SHALL NOT generate runtime code.
+
+---
+
+# 10.11 Runtime Assertions
+
+Runtime assertions evaluate during execution.
+
+Assertion failure SHALL produce deterministic program failure.
+
+Implementations MAY disable runtime assertions in designated optimization profiles.
+
+---
+
+# 10.12 Attributes
+
+Attributes provide declarative metadata affecting compilation.
+
+Attributes SHALL be explicitly recognized by the implementation.
+
+Unknown attributes SHALL produce diagnostics unless explicitly permitted by the implementation profile.
+
+---
+
+# 10.13 Attribute Scope
+
+Attributes may apply to:
+
+- modules,
+- declarations,
+- types,
+- functions,
+- variables,
+- fields,
+- generic parameters,
+- implementations.
+
+Attributes SHALL NOT alter language semantics beyond those explicitly defined by this specification.
+
+---
+
+# 10.14 Standard Attributes
+
+The Raygen standard library defines the normative attribute set.
+
+Each standard attribute SHALL specify:
+
+- valid targets,
+- required arguments,
+- semantic effect,
+- diagnostic behavior.
+
+---
+
+# 10.15 User-Defined Attributes
+
+Implementations MAY permit user-defined attributes.
+
+User-defined attributes SHALL NOT modify the core semantics of the language.
+
+---
+
+# 10.16 Reflection
+
+Reflection provides controlled compile-time inspection of program structure.
+
+Reflection SHALL preserve deterministic compilation.
+
+---
+
+# 10.17 Reflection Scope
+
+Compile-time reflection may inspect:
+
+- declarations,
+- attributes,
+- types,
+- trait implementations,
+- generic parameters,
+- visibility,
+- documentation metadata.
+
+Reflection SHALL NOT observe runtime state.
+
+---
+
+# 10.18 Runtime Reflection
+
+Runtime reflection is optional.
+
+If supported, runtime reflection SHALL preserve type safety.
+
+Implementations SHALL explicitly identify unsupported reflection capabilities.
+
+---
+
+# 10.19 Metaprogram Safety
+
+Reflection and metaprogramming facilities SHALL NOT bypass:
+
+- ownership,
+- visibility,
+- lifetime analysis,
+- type checking,
+- safety rules.
+
+Generated programs are subject to all ordinary language rules.
+
+---
+
+# 10.20 Implementation-Defined Behavior
+
+Implementation-defined behavior is behavior explicitly left to the implementation.
+
+Every implementation-defined behavior SHALL be documented.
+
+Programs SHALL NOT depend upon undocumented implementation behavior.
+
+---
+
+# 10.21 Unspecified Behavior
+
+Unspecified behavior permits multiple valid implementation choices.
+
+Each execution SHALL remain well-defined.
+
+Unspecified behavior SHALL NOT introduce undefined behavior.
+
+---
+
+# 10.22 Undefined Behavior
+
+Undefined behavior exists only as specified in Part 9.
+
+Implementations MAY assume undefined behavior never occurs within well-formed programs.
+
+---
+
+# 10.23 Language Profiles
+
+Profiles define constrained subsets or extensions of Raygen.
+
+Profiles SHALL preserve compatibility with the normative language unless explicitly designated experimental.
+
+---
+
+## Examples
+
+Profiles may include:
+
+- embedded
+- hosted
+- kernel
+- safety-critical
+- educational
+
+---
+
+# 10.24 Profile Requirements
+
+Each profile SHALL specify:
+
+- supported language features,
+- prohibited features,
+- runtime assumptions,
+- standard library availability,
+- optimization requirements.
+
+---
+
+# 10.25 Editions
+
+An edition defines a stable evolution of the language.
+
+Programs SHALL identify the edition against which they are compiled.
+
+Editions SHALL preserve source compatibility whenever practical.
+
+Breaking changes SHALL require a new edition.
+
+---
+
+# 10.26 Feature Stability
+
+Language features are classified as:
+
+- stable,
+- experimental,
+- deprecated,
+- removed.
+
+Stable features SHALL preserve their specified behavior throughout an edition.
+
+---
+
+# 10.27 Experimental Features
+
+Experimental features SHALL require explicit opt-in.
+
+Experimental features SHALL NOT be enabled implicitly.
+
+Implementations MAY alter experimental features without preserving compatibility.
+
+---
+
+# 10.28 Deprecated Features
+
+Deprecated features remain valid but are scheduled for future removal.
+
+Use of deprecated features SHALL produce a warning.
+
+Removal SHALL occur only in a subsequent edition.
+
+---
+
+# 10.29 Removed Features
+
+Removed features SHALL produce compilation errors.
+
+Implementations MAY provide migration diagnostics.
+
+---
+
+# 10.30 Standard Library Conformance
+
+The standard library SHALL conform to all language rules.
+
+Library facilities SHALL NOT require privileged access unavailable to ordinary programs unless explicitly designated intrinsic.
+
+---
+
+# 10.31 Intrinsics
+
+Intrinsics provide implementation-defined operations that cannot be expressed in ordinary Raygen.
+
+Intrinsics SHALL be explicitly documented.
+
+Safe programs SHALL interact with intrinsics only through standardized interfaces.
+
+---
+
+# 10.32 Compiler Extensions
+
+Implementations MAY provide extensions.
+
+Extensions SHALL require explicit opt-in.
+
+Extensions SHALL NOT silently alter the semantics of standard Raygen programs.
+
+---
+
+# 10.33 Reserved Identifiers
+
+Identifiers reserved by this specification SHALL NOT be defined by user programs.
+
+Violation SHALL produce diagnostics.
+
+---
+
+# 10.34 Documentation Comments
+
+Documentation comments constitute implementation metadata.
+
+Documentation comments SHALL NOT affect program semantics.
+
+---
+
+# 10.35 Source Encoding
+
+A conforming implementation SHALL accept UTF-8 source files.
+
+Additional encodings MAY be supported.
+
+Implementations SHALL document supported encodings.
+
+---
+
+# 10.36 Source Locations
+
+Every diagnostic SHALL identify an associated source location whenever available.
+
+Generated code diagnostics SHOULD reference the originating source construct.
+
+---
+
+# 10.37 Conformance Levels
+
+Implementations are classified as:
+
+- conforming,
+- profile-conforming,
+- experimental.
+
+Only conforming implementations may claim full Raygen 1 compatibility.
+
+---
+
+# 10.38 Requirements for Conforming Implementations
+
+A conforming implementation SHALL:
+
+- implement all mandatory language rules,
+- preserve ownership guarantees,
+- preserve lifetime guarantees,
+- preserve type safety,
+- preserve deterministic failure semantics,
+- diagnose mandatory violations,
+- document implementation-defined behavior,
+- preserve edition compatibility,
+- implement the standard library according to this specification.
+
+---
+
+# 10.39 Requirements for Conforming Programs
+
+A conforming program SHALL:
+
+- satisfy the lexical grammar,
+- satisfy the syntactic grammar,
+- satisfy the static semantics,
+- avoid undefined behavior,
+- respect ownership rules,
+- respect lifetime rules,
+- respect visibility,
+- satisfy generic constraints,
+- satisfy trait coherence,
+- satisfy profile restrictions.
+
+---
+
+# 10.40 Normative Completion
+
+Parts 1 through 10 collectively define the normative core of the Raygen 1 Language Specification.
+
+No implementation may claim conformance while omitting mandatory requirements defined within this specification.
+
+Future editions SHALL preserve these guarantees except where explicitly superseded through the edition mechanism defined herein.
