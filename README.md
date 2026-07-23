@@ -1401,3 +1401,410 @@ No implementation may claim ownership conformance while permitting use-after-fre
 
 
 
+# Raygen 1 Normative Core
+## Part 5 — Concurrency, Tasks, Synchronization, Memory Model, and Determinism
+
+### 5.1 Purpose
+
+This section defines the normative concurrency model for Raygen 1.
+
+The concurrency model establishes:
+
+- task creation,
+- task execution,
+- synchronization,
+- inter-task communication,
+- memory visibility,
+- atomic operations,
+- data race prevention,
+- cancellation semantics,
+- deterministic behavior.
+
+A conforming implementation SHALL enforce these rules for all concurrent programs.
+
+---
+
+# 5.2 Concurrency Principles
+
+Raygen concurrency is based upon the following principles.
+
+1. Concurrency is explicit.
+
+2. Parallel execution is never inferred.
+
+3. Shared mutable state requires synchronization.
+
+4. Data races are prohibited within safe code.
+
+5. Ownership remains valid across concurrent execution.
+
+6. Memory visibility is defined solely by this specification.
+
+---
+
+# 5.3 Task
+
+A task is an independent execution context.
+
+Each task possesses:
+
+- its own execution stack,
+- its own local variables,
+- its own lifetime,
+- its own failure state.
+
+Tasks execute concurrently according to the implementation scheduler.
+
+---
+
+# 5.4 Task Creation
+
+A task is created using the language-defined task construction syntax.
+
+Creating a task SHALL establish:
+
+- a new execution context,
+- an independent stack,
+- an initial entry point.
+
+Task creation SHALL NOT implicitly share mutable ownership.
+
+---
+
+# 5.5 Ownership Transfer
+
+Objects transferred into a task SHALL move ownership.
+
+Example (illustrative):
+
+text spawn worker(move packet) 
+
+Following transfer:
+
+- the spawned task owns the object,
+- the parent task no longer owns it.
+
+Subsequent use by the originating task is ill-formed.
+
+---
+
+# 5.6 Borrowing Across Tasks
+
+Borrowed references SHALL NOT outlive the creating task.
+
+A borrowed reference may be shared with another task only when:
+
+- its lifetime is proven valid,
+- synchronization guarantees safe access,
+- the reference satisfies the language's concurrency requirements.
+
+Otherwise the program is ill-formed.
+
+---
+
+# 5.7 Shared State
+
+Shared mutable state SHALL be protected by synchronization.
+
+Permitted mechanisms include:
+
+- locks,
+- atomic objects,
+- message passing,
+- implementation-defined synchronization primitives conforming to this specification.
+
+Unsynchronized mutable sharing is prohibited.
+
+---
+
+# 5.8 Data Race
+
+A data race exists when:
+
+- two or more tasks access the same memory,
+- at least one access is a write,
+- the accesses are unordered,
+- synchronization is absent.
+
+Data races are prohibited in safe Raygen programs.
+
+A conforming implementation SHALL reject statically detectable races and SHALL define any remaining races within unsafe code as undefined behavior.
+
+---
+
+# 5.9 Happens-Before Relation
+
+The language defines a happens-before relation.
+
+If operation A happens-before operation B, then:
+
+- every write performed by A is visible to B,
+- memory effects preceding A are visible to B.
+
+The happens-before relation is established only through language-defined synchronization.
+
+Execution order alone does not establish visibility.
+
+---
+
+# 5.10 Synchronization Operations
+
+The following operations establish synchronization:
+
+- lock acquisition,
+- lock release,
+- atomic synchronization operations,
+- task completion,
+- message transfer,
+- barrier synchronization.
+
+Implementations SHALL preserve the visibility guarantees defined by these operations.
+
+---
+
+# 5.11 Locking
+
+A lock provides mutually exclusive access.
+
+At most one task may hold a lock simultaneously.
+
+While a lock is held:
+
+- protected mutable state may be accessed,
+- competing lock acquisition SHALL block or fail according to the selected locking policy.
+
+---
+
+# 5.12 Lock Ordering
+
+Programs SHOULD acquire multiple locks in a consistent order.
+
+Implementations MAY diagnose inconsistent lock ordering.
+
+The language does not guarantee deadlock prevention.
+
+Deadlock avoidance remains the programmer's responsibility unless a higher-level synchronization abstraction is employed.
+
+---
+
+# 5.13 Atomic Objects
+
+Atomic objects provide indivisible operations.
+
+Supported operations include:
+
+- load,
+- store,
+- exchange,
+- compare-and-exchange,
+- fetch-add,
+- fetch-subtract,
+- implementation-defined atomic primitives.
+
+Atomicity applies only to atomic storage.
+
+---
+
+# 5.14 Memory Ordering
+
+Raygen defines the following memory ordering modes:
+
+text relaxed  acquire  release  acquire_release  sequentially_consistent 
+
+Every atomic operation SHALL specify an ordering either explicitly or through a language-defined default.
+
+The meaning of each ordering is normative.
+
+---
+
+## relaxed
+
+Provides atomicity only.
+
+No synchronization is established.
+
+---
+
+## acquire
+
+Subsequent reads and writes SHALL observe memory effects synchronized with the corresponding release operation.
+
+---
+
+## release
+
+All preceding writes become visible to a corresponding acquire operation.
+
+---
+
+## acquire_release
+
+Combines acquire and release semantics.
+
+---
+
+## sequentially_consistent
+
+Participates in a single global total order of sequentially consistent atomic operations.
+
+---
+
+# 5.15 Fences
+
+A memory fence establishes ordering without directly accessing data.
+
+Fence semantics SHALL follow the selected memory ordering.
+
+Fences do not replace ownership verification.
+
+---
+
+# 5.16 Task Completion
+
+Task completion synchronizes with any successful join operation.
+
+After a join:
+
+- all writes performed by the completed task become visible,
+- ownership returned by the task transfers to the joining task.
+
+---
+
+# 5.17 Cancellation
+
+Cancellation requests cooperative task termination.
+
+Cancellation SHALL NOT immediately terminate execution.
+
+A task may observe cancellation only at defined cancellation points.
+
+Resources SHALL be released according to ordinary destruction rules.
+
+---
+
+# 5.18 Cancellation Points
+
+Cancellation points include:
+
+- explicit cancellation checks,
+- blocking synchronization,
+- task join,
+- implementation-defined interruptible operations.
+
+Implementations SHALL document additional cancellation points.
+
+---
+
+# 5.19 Message Passing
+
+Message passing transfers ownership between tasks.
+
+Messages SHALL be delivered according to the semantics of the selected communication primitive.
+
+Ownership of transferred objects passes to the receiving task upon successful receipt.
+
+---
+
+# 5.20 Channels
+
+Channels provide synchronized communication.
+
+A channel defines:
+
+- element type,
+- capacity,
+- blocking behavior,
+- closure semantics.
+
+Operations on closed channels SHALL produce behavior defined by the channel specification.
+
+---
+
+# 5.21 Barriers
+
+A barrier synchronizes a fixed collection of participating tasks.
+
+No participating task proceeds beyond the barrier until all required participants have arrived.
+
+Barrier completion establishes a happens-before relationship among participating tasks.
+
+---
+
+# 5.22 Thread-Local Storage
+
+Thread-local objects belong exclusively to one task.
+
+Thread-local storage SHALL NOT be shared directly with other tasks.
+
+Ownership transfer requires explicit movement into shared synchronization mechanisms.
+
+---
+
+# 5.23 Deterministic Execution
+
+Unless otherwise specified, task scheduling is implementation-defined.
+
+Programs SHALL NOT depend upon any particular scheduling order.
+
+Observable behavior SHALL depend only upon properly synchronized interactions.
+
+---
+
+# 5.24 Unsafe Concurrency
+
+Unsafe code may bypass certain concurrency guarantees.
+
+Unsafe concurrent code SHALL remain responsible for preserving:
+
+- memory safety,
+- synchronization correctness,
+- ownership validity,
+- lifetime correctness.
+
+Violation results in undefined behavior.
+
+---
+
+# 5.25 Memory Consistency
+
+Every conforming implementation SHALL provide a memory model consistent with:
+
+- the happens-before relation,
+- atomic ordering semantics,
+- synchronization visibility rules,
+- ownership guarantees.
+
+No implementation may expose behavior contradicting these guarantees.
+
+---
+
+# 5.26 Scheduler Independence
+
+The observable semantics of a correct Raygen program SHALL be independent of:
+
+- processor count,
+- scheduling algorithm,
+- execution timing,
+- operating system thread assignment.
+
+Implementation performance characteristics MAY differ, but language semantics SHALL remain identical.
+
+---
+
+# 5.27 Concurrency Conformance
+
+A conforming implementation SHALL:
+
+- implement explicit task creation,
+- preserve ownership across task boundaries,
+- prohibit data races in safe code,
+- implement the defined happens-before relation,
+- support the specified atomic memory orderings,
+- synchronize task completion,
+- enforce deterministic destruction during cancellation,
+- preserve scheduler-independent language semantics.
+
+No implementation may claim Raygen 1 concurrency conformance while permitting observable violations of the defined memory model, ownership rules, synchronization semantics, or atomic ordering guarantees within safe programs.
+
+
+
