@@ -3088,3 +3088,417 @@ No implementation may claim Raygen 1 evaluation conformance while permitting imp
 
 
 
+# Raygen 1 Normative Core
+## Part 9 — Memory, Layout, ABI, Foreign Function Interface (FFI), and Unsafe Operations
+
+### 9.1 Purpose
+
+This section defines the normative low-level execution model for Raygen 1.
+
+The low-level model establishes:
+
+- object representation,
+- alignment,
+- layout,
+- pointer semantics,
+- provenance,
+- foreign-function interoperability,
+- calling conventions,
+- unsafe operations,
+- binary compatibility.
+
+A conforming implementation SHALL preserve these guarantees.
+
+---
+
+# 9.2 Design Principles
+
+The Raygen low-level model is governed by the following principles.
+
+1. Safe code shall not depend upon object representation.
+
+2. Layout is explicit.
+
+3. Pointer provenance is preserved.
+
+4. Unsafe operations are explicitly delimited.
+
+5. Foreign interfaces shall not weaken language safety.
+
+6. ABI behavior is deterministic.
+
+---
+
+# 9.3 Object Representation
+
+Every object possesses:
+
+- a static type,
+- an alignment,
+- a size,
+- a storage location,
+- provenance.
+
+Representation is independent of semantic type identity.
+
+Programs SHALL NOT infer semantic meaning solely from binary layout.
+
+---
+
+# 9.4 Object Lifetime
+
+An object exists only during its valid lifetime.
+
+Storage SHALL NOT be accessed:
+
+- before initialization,
+- after destruction,
+- outside its lifetime.
+
+Violation within unsafe code results in undefined behavior.
+
+---
+
+# 9.5 Alignment
+
+Every object has a required alignment.
+
+The implementation SHALL ensure that objects are stored at addresses satisfying their alignment requirements.
+
+Access through misaligned pointers is undefined unless explicitly supported by the target ABI.
+
+---
+
+# 9.6 Object Size
+
+Every concrete type has a compile-time size unless explicitly defined as dynamically sized.
+
+The size of dynamically sized objects SHALL be determined through language-defined metadata.
+
+The size of a type SHALL remain constant throughout program execution.
+
+---
+
+# 9.7 Layout Categories
+
+Raygen defines three layout categories:
+
+text implementation  stable  foreign 
+
+---
+
+## implementation
+
+The compiler may freely choose representation.
+
+Safe code SHALL NOT depend upon layout.
+
+---
+
+## stable
+
+Field ordering, alignment, and padding are defined by this specification.
+
+Stable layout is intended for binary persistence and deterministic interchange.
+
+---
+
+## foreign
+
+Layout is determined by the foreign ABI.
+
+The compiler SHALL preserve compatibility with the declared foreign representation.
+
+---
+
+# 9.8 Padding
+
+Padding bytes are implementation artifacts.
+
+Programs SHALL NOT assume any value for padding.
+
+Reading padding through safe code is prohibited.
+
+Writing padding through safe code is prohibited.
+
+---
+
+# 9.9 Pointer
+
+A pointer identifies a storage location.
+
+A pointer possesses:
+
+- provenance,
+- address,
+- mutability,
+- lifetime.
+
+Pointer equality compares storage identity.
+
+---
+
+# 9.10 Provenance
+
+Every pointer originates from exactly one valid allocation.
+
+Pointer provenance SHALL be preserved across:
+
+- borrowing,
+- movement,
+- reborrowing,
+- permitted arithmetic.
+
+Operations that fabricate provenance are undefined unless explicitly authorized within unsafe code.
+
+---
+
+# 9.11 Null Pointers
+
+Safe Raygen references are never null.
+
+Nullable pointers SHALL be represented using an explicit optional type.
+
+Foreign interfaces may expose null pointers according to the declared ABI.
+
+---
+
+# 9.12 Pointer Arithmetic
+
+Pointer arithmetic is permitted only within unsafe code.
+
+Arithmetic SHALL remain within the bounds of the originating allocation, or one element beyond its end where permitted for comparison.
+
+Dereferencing an out-of-bounds pointer is undefined behavior.
+
+---
+
+# 9.13 Aliasing
+
+Aliasing rules defined in Part 4 remain applicable.
+
+Unsafe pointer operations SHALL preserve aliasing correctness.
+
+Violation results in undefined behavior.
+
+---
+
+# 9.14 Byte Representation
+
+Objects may be viewed as bytes only through language-defined mechanisms.
+
+Byte access SHALL preserve provenance.
+
+Reinterpreting arbitrary bytes as unrelated object types is prohibited unless explicitly authorized.
+
+---
+
+# 9.15 Type Reinterpretation
+
+Bit reinterpretation requires explicit unsafe operations.
+
+The source and destination representations SHALL satisfy the representation requirements defined by this specification.
+
+Programs SHALL NOT assume representation compatibility solely because object sizes are identical.
+
+---
+
+# 9.16 Calling Convention
+
+Every callable entity has an associated calling convention.
+
+The default Raygen calling convention is implementation-independent.
+
+Foreign declarations SHALL explicitly identify any non-default calling convention.
+
+Calling conventions determine:
+
+- parameter passing,
+- return value passing,
+- stack discipline,
+- register preservation.
+
+---
+
+# 9.17 Application Binary Interface (ABI)
+
+The ABI specifies binary interoperability between independently compiled components.
+
+The ABI defines:
+
+- symbol naming,
+- object layout,
+- function calling,
+- exception boundaries,
+- alignment,
+- parameter passing.
+
+Conforming implementations SHALL preserve ABI compatibility within the same edition and target profile.
+
+---
+
+# 9.18 Foreign Function Interface
+
+The Foreign Function Interface (FFI) enables interaction with external languages.
+
+Foreign declarations SHALL explicitly identify:
+
+- the foreign language or ABI,
+- the calling convention,
+- the imported symbol.
+
+Foreign declarations participate in ordinary type checking.
+
+---
+
+# 9.19 Foreign Types
+
+Foreign types SHALL be declared explicitly.
+
+The compiler SHALL verify representation compatibility between Raygen and foreign declarations.
+
+Representation mismatches are compile-time errors unless explicitly marked as unsafe.
+
+---
+
+# 9.20 Ownership Across FFI
+
+Ownership transfer across foreign boundaries SHALL be explicit.
+
+The declaration SHALL specify whether:
+
+- ownership is transferred,
+- ownership is borrowed,
+- ownership is retained.
+
+Implicit ownership transfer is prohibited.
+
+---
+
+# 9.21 Failure Across FFI
+
+Foreign calls SHALL specify how failures are represented.
+
+A foreign function SHALL NOT silently violate the Raygen failure-flow model.
+
+If necessary, foreign failures SHALL be translated into the canonical outcome<Allowed,Denied> representation defined in Part 3.
+
+---
+
+# 9.22 Unsafe Block
+
+Unsafe operations SHALL occur only within an explicit unsafe block.
+
+Unsafe blocks suspend selected static safety checks.
+
+All other language rules remain in force.
+
+---
+
+# 9.23 Unsafe Responsibilities
+
+Unsafe code is responsible for preserving:
+
+- memory safety,
+- lifetime validity,
+- ownership correctness,
+- aliasing correctness,
+- pointer provenance,
+- ABI correctness.
+
+Failure to satisfy these responsibilities results in undefined behavior.
+
+---
+
+# 9.24 Undefined Behavior
+
+Undefined behavior exists only when a program violates the rules governing unsafe execution.
+
+Safe Raygen programs SHALL NOT exhibit undefined behavior.
+
+Examples include:
+
+- dereferencing invalid pointers,
+- use-after-free,
+- violating provenance,
+- invalid type reinterpretation,
+- data races within unsafe code.
+
+---
+
+# 9.25 Volatile Access
+
+Volatile operations provide observable access to externally changing storage.
+
+Volatile access SHALL NOT establish synchronization.
+
+Volatile operations SHALL NOT replace atomic operations for inter-task communication.
+
+---
+
+# 9.26 Memory-Mapped I/O
+
+Memory-mapped device access SHALL occur only through explicitly designated APIs or types.
+
+Ordinary references SHALL NOT be assumed to represent device memory.
+
+Device access semantics are target-specific but SHALL preserve the language's ownership and lifetime guarantees.
+
+---
+
+# 9.27 Binary Compatibility
+
+Binary compatibility requires agreement on:
+
+- ABI,
+- layout,
+- alignment,
+- calling convention,
+- symbol identity.
+
+Binary compatibility SHALL NOT be inferred solely from matching source declarations.
+
+---
+
+# 9.28 Optimization Constraints
+
+Compiler optimizations SHALL preserve the observable behavior of well-formed programs.
+
+Optimizations SHALL NOT:
+
+- violate ownership,
+- alter memory ordering,
+- invalidate provenance,
+- change ABI-visible behavior.
+
+---
+
+# 9.29 Diagnostic Requirements
+
+When representation incompatibilities are detected, implementations SHALL diagnose:
+
+- the conflicting declarations,
+- the incompatible layouts,
+- the affected ABI boundary.
+
+Unsafe operations SHOULD produce diagnostics identifying potential violations of ownership, provenance, or lifetime rules.
+
+---
+
+# 9.30 Low-Level Conformance
+
+A conforming implementation SHALL:
+
+- preserve object lifetime,
+- enforce alignment requirements,
+- distinguish representation from type identity,
+- preserve pointer provenance,
+- require explicit unsafe blocks,
+- verify foreign declarations,
+- preserve ABI correctness,
+- prohibit undefined behavior in safe code.
+
+No implementation may claim Raygen 1 low-level conformance while permitting implementation-defined violations of provenance, lifetime, ownership, layout guarantees, or foreign-interface semantics within safe programs.
+
+
+
